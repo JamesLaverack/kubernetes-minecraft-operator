@@ -17,11 +17,29 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+
+type ServerType string
+
+const (
+	ServerTypePaper ServerType = "Paper"
+	ServerTypeForge ServerType = "Forge"
+)
+
+// Player is a Minecraft player defined by a username or a UUID
+type Player struct {
+	Username string `json:"username,omitempty"`
+	UUID     string `json:"uuid,omitempty"`
+}
+
+type WorldSpec struct {
+	PersistentVolumeClaim *corev1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`
+}
 
 // MinecraftServerSpec defines the desired state of MinecraftServer
 type MinecraftServerSpec struct {
@@ -30,6 +48,12 @@ type MinecraftServerSpec struct {
 
 	// Foo is an example field of MinecraftServer. Edit minecraftserver_types.go to remove/update
 	Foo string `json:"foo,omitempty"`
+
+	MinecraftVersion string     `json:"minecraftVersion"`
+	Type             ServerType `json:"type"`
+	AllowList        []Player   `json:"allowList,omitempty"`
+	BanList          []Player   `json:"banList,omitempty"`
+	World            WorldSpec  `json:"world,omitempty"`
 }
 
 // MinecraftServerStatus defines the observed state of MinecraftServer

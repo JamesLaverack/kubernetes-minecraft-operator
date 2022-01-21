@@ -35,10 +35,61 @@ spec:
           spec:
             description: MinecraftServerSpec defines the desired state of MinecraftServer
             properties:
+              allowList:
+                items:
+                  description: Player is a Minecraft player defined by a username
+                    or a UUID
+                  properties:
+                    username:
+                      type: string
+                    uuid:
+                      type: string
+                  type: object
+                type: array
+              banList:
+                items:
+                  description: Player is a Minecraft player defined by a username
+                    or a UUID
+                  properties:
+                    username:
+                      type: string
+                    uuid:
+                      type: string
+                  type: object
+                type: array
               foo:
                 description: Foo is an example field of MinecraftServer. Edit minecraftserver_types.go
                   to remove/update
                 type: string
+              minecraftVersion:
+                type: string
+              type:
+                type: string
+              world:
+                properties:
+                  persistentVolumeClaim:
+                    description: PersistentVolumeClaimVolumeSource references the
+                      user's PVC in the same namespace. This volume finds the bound
+                      PV and mounts that volume for the pod. A PersistentVolumeClaimVolumeSource
+                      is, essentially, a wrapper around another type of volume that
+                      is owned by someone else (the system).
+                    properties:
+                      claimName:
+                        description: 'ClaimName is the name of a PersistentVolumeClaim
+                          in the same namespace as the pod using this volume. More
+                          info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
+                        type: string
+                      readOnly:
+                        description: Will force the ReadOnly setting in VolumeMounts.
+                          Default false.
+                        type: boolean
+                    required:
+                    - claimName
+                    type: object
+                type: object
+            required:
+            - minecraftVersion
+            - type
             type: object
           status:
             description: MinecraftServerStatus defines the observed state of MinecraftServer
