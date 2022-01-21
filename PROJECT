@@ -1,0 +1,6 @@
+domain: jameslaverack.com
+layout:
+- go.kubebuilder.io/v3
+projectName: minecraft-operator
+repo: github.com/jameslaverack/minecraft-operator
+version: "3"
