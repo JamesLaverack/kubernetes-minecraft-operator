@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - minecraft.jameslaverack.com
+  resources:
+  - minecraftservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - minecraft.jameslaverack.com
+  resources:
+  - minecraftservers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - minecraft.jameslaverack.com
+  resources:
+  - minecraftservers/status
+  verbs:
+  - get
+  - patch
+  - update
