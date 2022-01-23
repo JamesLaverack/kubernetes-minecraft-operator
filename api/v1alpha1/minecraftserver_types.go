@@ -42,8 +42,8 @@ const (
 
 // Player is a Minecraft player defined by a username or a UUID
 type Player struct {
-	Username string `json:"username,omitempty"`
-	UUID     string `json:"uuid,omitempty"`
+	Name string `json:"name,omitempty"`
+	UUID string `json:"uuid,omitempty"`
 }
 
 type WorldSpec struct {
@@ -55,14 +55,14 @@ type MinecraftServerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	EULA             EULAAcceptance               `json:"eula"`
-	MinecraftVersion string                       `json:"minecraftVersion"`
-	Type             ServerType                   `json:"type"`
-	AllowList        []Player                     `json:"allowList,omitempty"`
-	World            *WorldSpec                   `json:"world,omitempty"`
-	MOTD             string                       `json:"motd"`
-	MaxPlayers       int                          `json:"maxPlayers"`
-	ViewDistance     int                          `json:"viewDistance"`
+	EULA             EULAAcceptance `json:"eula"`
+	MinecraftVersion string         `json:"minecraftVersion"`
+	Type             ServerType     `json:"type"`
+	AllowList        []Player       `json:"allowList,omitempty"`
+	World            *WorldSpec     `json:"world,omitempty"`
+	MOTD             string         `json:"motd"`
+	MaxPlayers       int            `json:"maxPlayers"`
+	ViewDistance     int            `json:"viewDistance"`
 }
 
 // MinecraftServerStatus defines the observed state of MinecraftServer
