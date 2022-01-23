@@ -39,7 +39,7 @@ type MinecraftServerReconciler struct {
 //+kubebuilder:rbac:groups=minecraft.jameslaverack.com,resources=minecraftservers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=minecraft.jameslaverack.com,resources=minecraftservers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=minecraft.jameslaverack.com,resources=minecraftservers/finalizers,verbs=update
-//+kubebuilder:rbac:groups=,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
