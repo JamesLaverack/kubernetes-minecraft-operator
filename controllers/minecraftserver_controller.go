@@ -119,7 +119,7 @@ func configMapForServer(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]
 	config := make(map[string]string)
 	serverPropertiesString := ""
 	for k, v := range serverProperties {
-		serverPropertiesString = k + "=" + v + "\n"
+		serverPropertiesString = serverPropertiesString + k + "=" + v + "\n"
 	}
 	config["server.properties"] = serverPropertiesString
 
