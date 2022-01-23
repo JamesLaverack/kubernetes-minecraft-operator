@@ -47,7 +47,7 @@ spec:
                   description: Player is a Minecraft player defined by a username
                     or a UUID
                   properties:
-                    username:
+                    name:
                       type: string
                     uuid:
                       type: string
