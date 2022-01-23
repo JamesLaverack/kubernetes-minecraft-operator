@@ -39,6 +39,7 @@ type MinecraftServerReconciler struct {
 //+kubebuilder:rbac:groups=minecraft.jameslaverack.com,resources=minecraftservers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=minecraft.jameslaverack.com,resources=minecraftservers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=minecraft.jameslaverack.com,resources=minecraftservers/finalizers,verbs=update
+//+kubebuilder:rbac:groups=,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -64,6 +65,7 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      server.Name,
 			Namespace: server.Namespace,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(&server, minecraftv1alpha1.GroupVersion.WithKind("MinecraftServer"))},
 		},
 		Data: configFiles,
 	}
@@ -79,7 +81,8 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	// Compare the contents of the actual CM to ours.
 	// TODO handle keys in the files in different orders, JSON encoding differences, etc.
-	if !reflect.DeepEqual(desiredConfigMap.Data, actualConfigMap.Data) {
+	if !reflect.DeepEqual(desiredConfigMap.Data, actualConfigMap.Data) ||
+		!reflect.DeepEqual(desiredConfigMap.OwnerReferences, actualConfigMap.OwnerReferences) {
 		// ConfigMap data isn't correct. Update it.
 		return ctrl.Result{}, r.Update(ctx, &desiredConfigMap)
 	}
@@ -136,5 +139,6 @@ func configMapForServer(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]
 func (r *MinecraftServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&minecraftv1alpha1.MinecraftServer{}).
+		Owns(&corev1.ConfigMap{}).
 		Complete(r)
 }
