@@ -60,7 +60,6 @@ type MinecraftServerSpec struct {
 	Type             ServerType                   `json:"type"`
 	AllowList        []Player                     `json:"allowList,omitempty"`
 	World            *WorldSpec                   `json:"world,omitempty"`
-	Resources        *corev1.ResourceRequirements `json:"resources,omitempty"`
 	MOTD             string                       `json:"motd"`
 	MaxPlayers       int                          `json:"maxPlayers"`
 	ViewDistance     int                          `json:"viewDistance"`
