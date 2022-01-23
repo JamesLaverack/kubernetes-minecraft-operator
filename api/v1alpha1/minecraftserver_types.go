@@ -24,11 +24,20 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// +kubebuilder:validation:Enum=Paper;Forge
 type ServerType string
 
 const (
 	ServerTypePaper ServerType = "Paper"
 	ServerTypeForge ServerType = "Forge"
+)
+
+// +kubebuilder:validation:Enum=Accepted;NotAccepted
+type EULAAcceptance string
+
+const (
+	EULAAcceptanceAccepted    EULAAcceptance = "Accepted"
+	EULAAcceptanceNotAccepted EULAAcceptance = "NotAccepted"
 )
 
 // Player is a Minecraft player defined by a username or a UUID
@@ -46,14 +55,15 @@ type MinecraftServerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of MinecraftServer. Edit minecraftserver_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
-
-	MinecraftVersion string     `json:"minecraftVersion"`
-	Type             ServerType `json:"type"`
-	AllowList        []Player   `json:"allowList,omitempty"`
-	BanList          []Player   `json:"banList,omitempty"`
-	World            WorldSpec  `json:"world,omitempty"`
+	EULA             EULAAcceptance               `json:"eula"`
+	MinecraftVersion string                       `json:"minecraftVersion"`
+	Type             ServerType                   `json:"type"`
+	AllowList        []Player                     `json:"allowList,omitempty"`
+	World            *WorldSpec                   `json:"world,omitempty"`
+	Resources        *corev1.ResourceRequirements `json:"resources,omitempty"`
+	MOTD             string                       `json:"motd"`
+	MaxPlayers       int                          `json:"maxPlayers"`
+	ViewDistance     int                          `json:"viewDistance"`
 }
 
 // MinecraftServerStatus defines the observed state of MinecraftServer
@@ -65,6 +75,8 @@ type MinecraftServerStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
+// +kubebuilder:printcolumn:name="Version",type=string,JSONPath=`.spec.minecraftVersion`
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
 // MinecraftServer is the Schema for the minecraftservers API
 type MinecraftServer struct {
 	metav1.TypeMeta   `json:",inline"`

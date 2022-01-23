@@ -18,13 +18,16 @@ package controllers
 
 import (
 	"context"
-
+	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/json"
+	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
+	"strconv"
 )
 
 // MinecraftServerReconciler reconciles a MinecraftServer object
@@ -47,11 +50,86 @@ type MinecraftServerReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	var server minecraftv1alpha1.MinecraftServer
+	if err := r.Get(ctx, req.NamespacedName, &server); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
 
-	// TODO(user): your logic here
+	configFiles, err := configMapForServer(server.Spec)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	desiredConfigMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      server.Name,
+			Namespace: server.Namespace,
+		},
+		Data: configFiles,
+	}
+	var actualConfigMap corev1.ConfigMap
+	if err := r.Get(ctx, client.ObjectKeyFromObject(&desiredConfigMap), &actualConfigMap); err != nil {
+		if apierrors.IsNotFound(err) {
+			// No CM, make it and exit.
+			return ctrl.Result{}, r.Create(ctx, &desiredConfigMap)
+		}
+		// Some error on the GET that *isn't* a not found. Take no further action.
+		return ctrl.Result{}, err
+	}
+
+	// Compare the contents of the actual CM to ours.
+	// TODO handle keys in the files in different orders, JSON encoding differences, etc.
+	if !reflect.DeepEqual(desiredConfigMap.Data, actualConfigMap.Data) {
+		// ConfigMap data isn't correct. Update it.
+		return ctrl.Result{}, r.Update(ctx, &desiredConfigMap)
+	}
 
 	return ctrl.Result{}, nil
+}
+
+func configMapForServer(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]string, error) {
+	serverProperties := make(map[string]string)
+	if spec.MOTD != "" {
+		serverProperties["motd"] = spec.MOTD
+	}
+	// Needed for the file system to sync up
+	serverProperties["level-name"] = "world"
+	// TODO configure on CRD
+	serverProperties["gamemode"] = "survival"
+	// TODO configure on CRD
+	serverProperties["difficulty"] = "normal"
+	if len(spec.AllowList) > 0 {
+		// Minecraft uses the term "whitelist", but we use "allowlist" wherever possible
+		serverProperties["white-list"] = "true"
+	} else {
+		serverProperties["white-list"] = "false"
+	}
+	if spec.MaxPlayers > 0 {
+		serverProperties["max-players"] = strconv.Itoa(spec.MaxPlayers)
+	}
+	if spec.ViewDistance > 0 {
+		serverProperties["view-distance"] = strconv.Itoa(spec.ViewDistance)
+	}
+	// TODO Maybe use RCONS for something useful
+	serverProperties["enable-rcon"] = "false"
+
+	config := make(map[string]string)
+	serverPropertiesString := ""
+	for k, v := range serverProperties {
+		serverPropertiesString = k + "=" + v + "\n"
+	}
+	config["server.properties"] = serverPropertiesString
+
+	if len(spec.AllowList) > 0 {
+		// We can directly marshall the Player objects
+		d, err := json.Marshal(spec.AllowList)
+		if err != nil {
+			return nil, err
+		}
+		config["whitelist.json"] = string(d)
+	}
+
+	return config, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

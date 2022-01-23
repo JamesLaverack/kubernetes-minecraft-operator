@@ -15,7 +15,14 @@ spec:
     singular: minecraftserver
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.minecraftVersion
+      name: Version
+      type: string
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: MinecraftServer is the Schema for the minecraftservers API
@@ -46,25 +53,50 @@ spec:
                       type: string
                   type: object
                 type: array
-              banList:
-                items:
-                  description: Player is a Minecraft player defined by a username
-                    or a UUID
-                  properties:
-                    username:
-                      type: string
-                    uuid:
-                      type: string
-                  type: object
-                type: array
-              foo:
-                description: Foo is an example field of MinecraftServer. Edit minecraftserver_types.go
-                  to remove/update
+              eula:
+                enum:
+                - Accepted
+                - NotAccepted
                 type: string
+              maxPlayers:
+                type: integer
               minecraftVersion:
                 type: string
-              type:
+              motd:
                 type: string
+              resources:
+                description: ResourceRequirements describes the compute resource requirements.
+                properties:
+                  limits:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: 'Limits describes the maximum amount of compute resources
+                      allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                    type: object
+                  requests:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: 'Requests describes the minimum amount of compute
+                      resources required. If Requests is omitted for a container,
+                      it defaults to Limits if that is explicitly specified, otherwise
+                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                    type: object
+                type: object
+              type:
+                enum:
+                - Paper
+                - Forge
+                type: string
+              viewDistance:
+                type: integer
               world:
                 properties:
                   persistentVolumeClaim:
@@ -88,8 +120,12 @@ spec:
                     type: object
                 type: object
             required:
+            - eula
+            - maxPlayers
             - minecraftVersion
+            - motd
             - type
+            - viewDistance
             type: object
           status:
             description: MinecraftServerStatus defines the observed state of MinecraftServer
