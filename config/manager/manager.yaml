@@ -31,7 +31,8 @@ spec:
         - /manager
         args:
         - --leader-elect
-        image: controller:latest
+        image: ghcr.io/jameslaverack/minecraft-operator:main
+        imagePullPolicy: Always
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
