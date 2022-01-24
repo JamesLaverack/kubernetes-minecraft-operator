@@ -9,6 +9,10 @@ Note that this is 🚧 alpha-grade 🚧 software. No guarantee is provided (see 
 responsible for the security and data-integrity of their own servers. The API surface is subject to change. This
 software is not endorsed or supported by Microsoft, Mojang, or the Minecraft development team.
 
+All the heavy-lifting is done by the excellent [itzg/docker-minecraft-server](https://github.com/itzg/docker-minecraft-server).
+That container image is what is actually deployed into the cluster as a `Pod`. This project isn't endorsed or
+supported by itzg either.
+
 ## Installing
 
 Use `make install` from the root of this directory with your cluster configured in `kubectl`.
