@@ -231,11 +231,15 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{
-			// TODO Don't mount configmap volume, or make the configmap, if there's nothing in it (e.g., when there's
-			//      no whitelist).
 			{
 				Name:      configVolumeMountName,
-				MountPath: "/config",
+				MountPath: "/config/whitelist.json",
+				SubPath:   "whitelist.json",
+			},
+			{
+				Name:      configVolumeMountName,
+				MountPath: "/config/ops.json",
+				SubPath:   "ops.json",
 			},
 		},
 	}
@@ -258,16 +262,6 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 						ConfigMap: &corev1.ConfigMapVolumeSource{
 							LocalObjectReference: corev1.LocalObjectReference{
 								Name: name,
-							},
-							Items: []corev1.KeyToPath{
-								{
-									Key: "whitelist.json",
-									Path: "whitelist.json",
-								},
-								{
-									Key: "ops.json",
-									Path: "ops.json",
-								},
 							},
 						},
 					},
@@ -294,19 +288,19 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 				// TODO Account for the fact that we might be running on Windows and therefore filepath.Join will do the
 				//      wrong kind of filepath joining?
 				MountPath: filepath.Join("/data/", levelName),
-				SubPath: levelName,
+				SubPath:   levelName,
 			},
 			corev1.VolumeMount{
-				Name: worldVolumeMountName,
+				Name:      worldVolumeMountName,
 				MountPath: filepath.Join("/data/", levelNameNether),
-				SubPath: levelNameNether,
+				SubPath:   levelNameNether,
 			},
 			corev1.VolumeMount{
-				Name: worldVolumeMountName,
+				Name:      worldVolumeMountName,
 				MountPath: filepath.Join("/data/", levelNameTheEnd),
-				SubPath: levelNameTheEnd,
+				SubPath:   levelNameTheEnd,
 			},
-			)
+		)
 		container.Env = append(container.Env, corev1.EnvVar{
 			Name:  "LEVEL",
 			Value: levelName,
