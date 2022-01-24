@@ -43,6 +43,7 @@ type MinecraftServerReconciler struct {
 //+kubebuilder:rbac:groups=minecraft.jameslaverack.com,resources=minecraftservers/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -107,8 +108,56 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, r.Update(ctx, &desiredPod)
 	}
 
+	desiredService := serviceForServer(server.Name, server.Namespace, server.Spec)
+	desiredService.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&server, minecraftv1alpha1.GroupVersion.WithKind("MinecraftServer"))}
+	var actualService corev1.Service
+	if err := r.Get(ctx, client.ObjectKeyFromObject(&desiredService), &actualService); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, r.Create(ctx, &desiredService)
+		}
+		return ctrl.Result{}, err
+	}
+	if !reflect.DeepEqual(desiredService.Spec, actualService.Spec) ||
+		!reflect.DeepEqual(desiredService.OwnerReferences, actualService.OwnerReferences) {
+		return ctrl.Result{}, r.Update(ctx, &desiredService)
+	}
+
 	// All good, return
 	return ctrl.Result{}, nil
+}
+
+func serviceForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServerSpec) corev1.Service {
+	service := corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":       "minecraft",
+				"minecraft": name,
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			// TODO Make configurable
+			Type: corev1.ServiceTypeLoadBalancer,
+			Selector: map[string]string{
+				// TODO Pull these labels into a supporting function or something
+				"app":       "minecraft",
+				"minecraft": name,
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name: "minecraft",
+					Port: 25565,
+				},
+			},
+		},
+	}
+
+	if spec.ExternalServiceIP != "" {
+		service.Spec.ExternalIPs = []string{spec.ExternalServiceIP}
+	}
+
+	return service
 }
 
 func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServerSpec) corev1.Pod {
@@ -127,27 +176,27 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 				Value: "6g",
 			},
 			{
-				Name: "TYPE",
+				Name:  "TYPE",
 				Value: string(spec.Type),
 			},
 			{
 				// In theory this is redundant as the /data directory isn't mounted or persisted directly, so files
 				// like /data/server.properties will be destroyed on restart. But better safe than sorry with config
 				// file changes.
-				Name: "OVERRIDE_SERVER_PROPERTIES",
+				Name:  "OVERRIDE_SERVER_PROPERTIES",
 				Value: "true",
 			},
 			{
 				// TODO Make configurable if you want a public server I guess
-				Name: "ENFORCE_WHITELIST",
+				Name:  "ENFORCE_WHITELIST",
 				Value: "true",
 			},
 			{
-				Name: "ENABLE_RCON",
+				Name:  "ENABLE_RCON",
 				Value: "false",
 			},
 			{
-				Name: "FORCE_GAMEMODE",
+				Name:  "FORCE_GAMEMODE",
 				Value: "true",
 			},
 			{
@@ -157,11 +206,11 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 			},
 			{
 				// TODO Make configurable
-				Name: "MODE",
+				Name:  "MODE",
 				Value: "survival",
 			},
 			{
-				Name: "ENABLE_ROLLING_LOGS",
+				Name:  "ENABLE_ROLLING_LOGS",
 				Value: "true",
 			},
 		},
@@ -198,7 +247,7 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				"app": "minecraft",
+				"app":       "minecraft",
 				"minecraft": name,
 			},
 		},
@@ -231,7 +280,7 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 			})
 		container.VolumeMounts = append(container.VolumeMounts,
 			corev1.VolumeMount{
-				Name:      worldVolumeMountName,
+				Name: worldVolumeMountName,
 				// TODO Account for the fact that we might be running on Windows and therefore filepath.Join will do the
 				//      wrong kind of filepath joining?
 				MountPath: filepath.Join("/data/", levelName),
@@ -327,5 +376,6 @@ func (r *MinecraftServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&minecraftv1alpha1.MinecraftServer{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Pod{}).
+		Owns(&corev1.Service{}).
 		Complete(r)
 }

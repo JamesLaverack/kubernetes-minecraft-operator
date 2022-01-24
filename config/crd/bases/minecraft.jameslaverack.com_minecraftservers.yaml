@@ -58,6 +58,8 @@ spec:
                 - Accepted
                 - NotAccepted
                 type: string
+              externalServiceIP:
+                type: string
               maxPlayers:
                 type: integer
               minecraftVersion:
@@ -95,6 +97,7 @@ spec:
                 type: object
             required:
             - eula
+            - externalServiceIP
             - maxPlayers
             - minecraftVersion
             - motd

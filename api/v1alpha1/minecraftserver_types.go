@@ -55,14 +55,15 @@ type MinecraftServerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	EULA             EULAAcceptance `json:"eula"`
-	MinecraftVersion string         `json:"minecraftVersion"`
-	Type             ServerType     `json:"type"`
-	AllowList        []Player       `json:"allowList,omitempty"`
-	World            *WorldSpec     `json:"world,omitempty"`
-	MOTD             string         `json:"motd"`
-	MaxPlayers       int            `json:"maxPlayers"`
-	ViewDistance     int            `json:"viewDistance"`
+	EULA              EULAAcceptance `json:"eula"`
+	MinecraftVersion  string         `json:"minecraftVersion"`
+	Type              ServerType     `json:"type"`
+	AllowList         []Player       `json:"allowList,omitempty"`
+	World             *WorldSpec     `json:"world,omitempty"`
+	MOTD              string         `json:"motd"`
+	MaxPlayers        int            `json:"maxPlayers"`
+	ViewDistance      int            `json:"viewDistance"`
+	ExternalServiceIP string         `json:"externalServiceIP"`
 }
 
 // MinecraftServerStatus defines the observed state of MinecraftServer
