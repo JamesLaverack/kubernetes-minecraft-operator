@@ -167,6 +167,10 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 				Value: "6g",
 			},
 			{
+				Name:  "VERSION",
+				Value: spec.MinecraftVersion,
+			},
+			{
 				Name:  "TYPE",
 				Value: string(spec.Type),
 			},
