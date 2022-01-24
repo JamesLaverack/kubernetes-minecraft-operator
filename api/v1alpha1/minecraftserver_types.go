@@ -59,6 +59,7 @@ type MinecraftServerSpec struct {
 	MinecraftVersion  string         `json:"minecraftVersion"`
 	Type              ServerType     `json:"type"`
 	AllowList         []Player       `json:"allowList,omitempty"`
+	OpsList           []Player       `json:"opsList,omitempty"`
 	World             *WorldSpec     `json:"world,omitempty"`
 	MOTD              string         `json:"motd"`
 	MaxPlayers        int            `json:"maxPlayers"`

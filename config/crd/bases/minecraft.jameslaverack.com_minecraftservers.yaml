@@ -66,6 +66,17 @@ spec:
                 type: string
               motd:
                 type: string
+              opsList:
+                items:
+                  description: Player is a Minecraft player defined by a username
+                    or a UUID
+                  properties:
+                    name:
+                      type: string
+                    uuid:
+                      type: string
+                  type: object
+                type: array
               type:
                 enum:
                 - Paper

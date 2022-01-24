@@ -93,6 +93,11 @@ func (in *MinecraftServerSpec) DeepCopyInto(out *MinecraftServerSpec) {
 		*out = make([]Player, len(*in))
 		copy(*out, *in)
 	}
+	if in.OpsList != nil {
+		in, out := &in.OpsList, &out.OpsList
+		*out = make([]Player, len(*in))
+		copy(*out, *in)
+	}
 	if in.World != nil {
 		in, out := &in.World, &out.World
 		*out = new(WorldSpec)

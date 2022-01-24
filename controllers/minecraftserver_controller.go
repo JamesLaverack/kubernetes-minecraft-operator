@@ -332,6 +332,29 @@ func configMapForServer(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]
 		config["whitelist.json"] = string(d)
 	}
 
+	if len(spec.OpsList) > 0 {
+		type op struct {
+			UUID                string `json:"uuid,omitempty"`
+			Name                string `json:"name,omitempty"`
+			Level               int    `json:"level"`
+			BypassesPlayerLimit string `json:"bypassesPlayerLimit"`
+		}
+		ops := make([]op, len(spec.OpsList))
+		for i, o := range spec.OpsList {
+			ops[i] = op{
+				UUID: o.UUID,
+				Name: o.Name,
+				Level: 4,
+				BypassesPlayerLimit: "false",
+			}
+		}
+		d, err := json.Marshal(ops)
+		if err != nil {
+			return nil, err
+		}
+		config["ops.json"] = string(d)
+	}
+
 	return config, nil
 }
 
