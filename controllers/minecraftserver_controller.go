@@ -178,7 +178,7 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 			{
 				// TODO Make configurable if you want a public server I guess
 				Name:  "ENFORCE_WHITELIST",
-				Value: "true",
+				Value: "TRUE",
 			},
 			{
 				Name:  "ENABLE_RCON",
