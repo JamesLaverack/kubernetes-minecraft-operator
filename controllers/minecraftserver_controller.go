@@ -259,6 +259,16 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 							LocalObjectReference: corev1.LocalObjectReference{
 								Name: name,
 							},
+							Items: []corev1.KeyToPath{
+								{
+									Key: "whitelist.json",
+									Path: "whitelist.json",
+								},
+								{
+									Key: "ops.json",
+									Path: "ops.json",
+								},
+							},
 						},
 					},
 				},
