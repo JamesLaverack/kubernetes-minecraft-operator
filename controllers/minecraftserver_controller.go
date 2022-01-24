@@ -91,13 +91,7 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 		return ctrl.Result{}, err
 	}
-	// Compare the contents of the actual Pod to ours
-	// TODO Don't use DeepEqual because a webhook could mutate some field and we might end up in some infinite loop
-	// TODO Check the labels too
-	if !reflect.DeepEqual(desiredPod.Spec, actualPod.Spec) ||
-		!reflect.DeepEqual(desiredPod.OwnerReferences, actualPod.OwnerReferences) {
-		return ctrl.Result{}, r.Update(ctx, &desiredPod)
-	}
+	// TODO Compare the actual pod to our pod. It's immutable maybe but... we should verify. Hard to do though.
 
 	desiredService := serviceForServer(server.Name, server.Namespace, server.Spec)
 	desiredService.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&server, minecraftv1alpha1.GroupVersion.WithKind("MinecraftServer"))}
