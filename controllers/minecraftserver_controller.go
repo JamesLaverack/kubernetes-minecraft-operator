@@ -177,6 +177,11 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 			},
 			{
 				// TODO Make configurable if you want a public server I guess
+				Name:  "ENABLE_WHITELIST",
+				Value: "TRUE",
+			},
+			{
+				// TODO Make configurable if you want a public server I guess
 				Name:  "ENFORCE_WHITELIST",
 				Value: "TRUE",
 			},
