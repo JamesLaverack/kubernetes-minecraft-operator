@@ -181,6 +181,22 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 				Value: "TRUE",
 			},
 			{
+				Name: "WHITELIST_FILE",
+				Value: "/data/config/whitelist.json",
+			},
+			{
+				Name: "OVERRIDE_WHITELIST",
+				Value: "true",
+			},
+			{
+				Name: "OPS_FILE",
+				Value: "/data/config/ops.json",
+			},
+			{
+				Name: "OVERRIDE_OPS",
+				Value: "true",
+			},
+			{
 				// TODO Make configurable if you want a public server I guess
 				Name:  "ENFORCE_WHITELIST",
 				Value: "TRUE",
