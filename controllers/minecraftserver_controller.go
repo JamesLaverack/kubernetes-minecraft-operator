@@ -321,37 +321,7 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 }
 
 func configMapForServer(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]string, error) {
-	serverProperties := make(map[string]string)
-	if spec.MOTD != "" {
-		serverProperties["motd"] = spec.MOTD
-	}
-	// Needed for the file system to sync up
-	serverProperties["level-name"] = "world"
-	// TODO configure on CRD
-	serverProperties["gamemode"] = "survival"
-	// TODO configure on CRD
-	serverProperties["difficulty"] = "normal"
-	if len(spec.AllowList) > 0 {
-		// Minecraft uses the term "whitelist", but we use "allowlist" wherever possible
-		serverProperties["white-list"] = "true"
-	} else {
-		serverProperties["white-list"] = "false"
-	}
-	if spec.MaxPlayers > 0 {
-		serverProperties["max-players"] = strconv.Itoa(spec.MaxPlayers)
-	}
-	if spec.ViewDistance > 0 {
-		serverProperties["view-distance"] = strconv.Itoa(spec.ViewDistance)
-	}
-	// TODO Maybe use RCONS for something useful
-	serverProperties["enable-rcon"] = "false"
-
 	config := make(map[string]string)
-	serverPropertiesString := ""
-	for k, v := range serverProperties {
-		serverPropertiesString = serverPropertiesString + k + "=" + v + "\n"
-	}
-	config["server.properties"] = serverPropertiesString
 
 	if len(spec.AllowList) > 0 {
 		// We can directly marshall the Player objects
