@@ -202,6 +202,10 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 				Name:  "ENABLE_ROLLING_LOGS",
 				Value: "true",
 			},
+			{
+				Name:  "SYNC_SKIP_NEWER_IN_DESTINATION",
+				Value: "true",
+			},
 		},
 		// TODO Make resources configurable
 		Resources: corev1.ResourceRequirements{
@@ -259,6 +263,8 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 
 	if spec.World != nil {
 		const levelName = "world"
+		const levelNameNether = "world_nether"
+		const levelNameTheEnd = "world_the_end"
 		const worldVolumeMountName = "world"
 		pod.Spec.Volumes = append(pod.Spec.Volumes,
 			corev1.Volume{
@@ -273,7 +279,19 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 				// TODO Account for the fact that we might be running on Windows and therefore filepath.Join will do the
 				//      wrong kind of filepath joining?
 				MountPath: filepath.Join("/data/", levelName),
-			})
+				SubPath: levelName,
+			},
+			corev1.VolumeMount{
+				Name: worldVolumeMountName,
+				MountPath: filepath.Join("/data/", levelNameNether),
+				SubPath: levelNameNether,
+			},
+			corev1.VolumeMount{
+				Name: worldVolumeMountName,
+				MountPath: filepath.Join("/data/", levelNameTheEnd),
+				SubPath: levelNameTheEnd,
+			},
+			)
 		container.Env = append(container.Env, corev1.EnvVar{
 			Name:  "LEVEL",
 			Value: levelName,
@@ -336,9 +354,9 @@ func configMapForServer(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]
 		ops := make([]op, len(spec.OpsList))
 		for i, o := range spec.OpsList {
 			ops[i] = op{
-				UUID: o.UUID,
-				Name: o.Name,
-				Level: 4,
+				UUID:                o.UUID,
+				Name:                o.Name,
+				Level:               4,
 				BypassesPlayerLimit: "false",
 			}
 		}
