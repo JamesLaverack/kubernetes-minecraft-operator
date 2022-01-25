@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"github.com/blang/semver"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -181,19 +182,19 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 				Value: "TRUE",
 			},
 			{
-				Name: "WHITELIST_FILE",
+				Name:  "WHITELIST_FILE",
 				Value: "/data/config/whitelist.json",
 			},
 			{
-				Name: "OVERRIDE_WHITELIST",
+				Name:  "OVERRIDE_WHITELIST",
 				Value: "true",
 			},
 			{
-				Name: "OPS_FILE",
+				Name:  "OPS_FILE",
 				Value: "/data/config/ops.json",
 			},
 			{
-				Name: "OVERRIDE_OPS",
+				Name:  "OVERRIDE_OPS",
 				Value: "true",
 			},
 			{
@@ -249,13 +250,7 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      configVolumeMountName,
-				MountPath: "/config/whitelist.json",
-				SubPath:   "whitelist.json",
-			},
-			{
-				Name:      configVolumeMountName,
-				MountPath: "/config/ops.json",
-				SubPath:   "ops.json",
+				MountPath: "/config",
 			},
 		},
 	}
@@ -351,6 +346,18 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 		})
 	}
 
+	if spec.VanillaTweaks != nil {
+		container.Env = append(container.Env,
+			corev1.EnvVar{
+				Name:  "VANILLATWEAKS_FILE",
+				Value: "/data/config/vanilla_tweaks.json",
+			},
+			corev1.EnvVar{
+				Name:  "REMOVE_OLD_VANILLATWEAKS",
+				Value: "true",
+			})
+	}
+
 	// Do this last, just before return
 	pod.Spec.Containers = append(pod.Spec.Containers, container)
 
@@ -390,6 +397,25 @@ func configMapForServer(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]
 			return nil, err
 		}
 		config["ops.json"] = string(d)
+	}
+
+	if spec.VanillaTweaks != nil {
+		version, err := semver.Parse(spec.MinecraftVersion)
+		if err != nil {
+			return nil, err
+		}
+		minorVersion := strconv.Itoa(int(version.Major)) + "." + strconv.Itoa(int(version.Minor))
+		d, err := json.Marshal(struct {
+			Version string                          `json:"version"`
+			Packs   minecraftv1alpha1.VanillaTweaks `json:"packs"`
+		}{
+			Version: minorVersion,
+			Packs:   *spec.VanillaTweaks,
+		})
+		if err != nil {
+			return nil, err
+		}
+		config["vanilla_tweaks.json"] = string(d)
 	}
 
 	return config, nil

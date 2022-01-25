@@ -82,6 +82,37 @@ spec:
                 - Paper
                 - Forge
                 type: string
+              vanillaTweaks:
+                properties:
+                  experimental:
+                    items:
+                      type: string
+                    type: array
+                  hermitcraft:
+                    items:
+                      type: string
+                    type: array
+                  items:
+                    items:
+                      type: string
+                    type: array
+                  mobs:
+                    items:
+                      type: string
+                    type: array
+                  survival:
+                    items:
+                      type: string
+                    type: array
+                  teleportation:
+                    items:
+                      type: string
+                    type: array
+                  utilities:
+                    items:
+                      type: string
+                    type: array
+                type: object
               viewDistance:
                 type: integer
               world:

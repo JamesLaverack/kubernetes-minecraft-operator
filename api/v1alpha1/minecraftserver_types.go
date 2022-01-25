@@ -50,11 +50,18 @@ type WorldSpec struct {
 	PersistentVolumeClaim *corev1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`
 }
 
+type VanillaTweaks struct {
+	Survival      []string `json:"survival,omitempty"`
+	Items         []string `json:"items,omitempty"`
+	Mobs          []string `json:"mobs,omitempty"`
+	Teleportation []string `json:"teleportation,omitempty"`
+	Utilities     []string `json:"utilities,omitempty"`
+	Hermitcraft   []string `json:"hermitcraft,omitempty"`
+	Experimental  []string `json:"experimental,omitempty"`
+}
+
 // MinecraftServerSpec defines the desired state of MinecraftServer
 type MinecraftServerSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	EULA              EULAAcceptance `json:"eula"`
 	MinecraftVersion  string         `json:"minecraftVersion"`
 	Type              ServerType     `json:"type"`
@@ -65,6 +72,7 @@ type MinecraftServerSpec struct {
 	MaxPlayers        int            `json:"maxPlayers"`
 	ViewDistance      int            `json:"viewDistance"`
 	ExternalServiceIP string         `json:"externalServiceIP"`
+	VanillaTweaks     *VanillaTweaks `json:"vanillaTweaks,omitempty"`
 }
 
 // MinecraftServerStatus defines the observed state of MinecraftServer
