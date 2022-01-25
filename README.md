@@ -44,6 +44,12 @@ spec:
   maxPlayers: 8
   viewDistance: 16
   externalServiceIP: 192.168.1.51
+  vanillaTweaks:
+    survival:
+      - 'multiplayer sleep'
+      - 'afk display'
+    items:
+      - 'player head drops'
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
