@@ -350,7 +350,7 @@ func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServer
 		container.Env = append(container.Env,
 			corev1.EnvVar{
 				Name:  "VANILLATWEAKS_FILE",
-				Value: "/data/config/vanilla_tweaks.json",
+				Value: "/config/vanilla_tweaks.json",
 			},
 			corev1.EnvVar{
 				Name:  "REMOVE_OLD_VANILLATWEAKS",
