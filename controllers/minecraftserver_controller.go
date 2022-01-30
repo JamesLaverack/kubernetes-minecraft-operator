@@ -20,7 +20,6 @@ import (
 	"context"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
 	"github.com/jameslaverack/minecraft-operator/pkg/reconcile"
-	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -124,6 +123,6 @@ func (r *MinecraftServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Pod{}).
 		Owns(&corev1.Service{}).
-		Owns(&monitoringv1.PodMonitor{}).
+		//Owns(&monitoringv1.PodMonitor{}).
 		Complete(r)
 }
