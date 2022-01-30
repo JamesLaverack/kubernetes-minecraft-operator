@@ -296,6 +296,29 @@ func podForServer(server *v1alpha1.MinecraftServer, configMap *corev1.ConfigMap)
 				Name:          "metrics",
 				ContainerPort: 9225,
 			})
+		pod.Spec.Volumes = append(pod.Spec.Volumes,
+			corev1.Volume{
+				Name: "prometheusExporterConfig",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: configMap.Name,
+						},
+						Items: []corev1.KeyToPath{
+							{
+								Key: "prometheus_exporter_config.yaml",
+								Path: "config.yml",
+							},
+						},
+					},
+				},
+			})
+		container.VolumeMounts = append(container.VolumeMounts,
+			corev1.VolumeMount{
+				Name: "prometheusExporterConfig",
+				MountPath: "/data/plugins/PrometheusExporter",
+				SubPath: "config.yml",
+			})
 	}
 
 	// Do this last, just before return

@@ -3,6 +3,7 @@ package reconcile
 import (
 	"context"
 	"github.com/blang/semver"
+	"github.com/ghodss/yaml"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -128,6 +129,38 @@ func configMapData(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]strin
 			return nil, err
 		}
 		config["vanilla_tweaks.json"] = string(d)
+	}
+
+	if spec.Monitoring.Enabled {
+		// prometheus-exporter plugin file
+		c := map[string]interface{}{
+			// This is the important bit, by default this plugin binds to localhost which isn't useful in K8s
+			"host": "0.0.0.0",
+			"port": 9225,
+			"enable_metrics": map[string]interface{}{
+				// These are the default settings (as of the time of writing)
+				"jvm_threads":           true,
+				"jvm_gc":                true,
+				"players_total":         true,
+				"entities_total":        true,
+				"living_entities_total": true,
+				"loaded_chunks_total":   true,
+				"jvm_memory":            true,
+				"players_online_total":  true,
+				"tps":                   true,
+				"tick_duration_average": true,
+				"tick_duration_median":  true,
+				"tick_duration_min":     false,
+				"tick_duration_max":     true,
+				"player_online":         false,
+				"player_statistic":      false,
+			},
+		}
+		d, err := yaml.Marshal(c)
+		if err != nil {
+			return nil, err
+		}
+		config["prometheus_exporter_config.yaml"] = string(d)
 	}
 
 	return config, nil
