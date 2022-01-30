@@ -57,7 +57,7 @@ func ReconcileConfigMap(ctx context.Context, logger *zap.SugaredLogger, reader c
 		return &actualConfigMap,
 			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting owner reference on configmap")
-				return ctrl.Result{}, writer.Patch(ctx, &actualConfigMap, client.MergeFrom(&actualConfigMap))
+				return ctrl.Result{}, writer.Update(ctx, &actualConfigMap)
 			},
 			nil
 	}
@@ -67,7 +67,7 @@ func ReconcileConfigMap(ctx context.Context, logger *zap.SugaredLogger, reader c
 		return &actualConfigMap,
 			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Correcting data on configmap")
-				return ctrl.Result{}, writer.Patch(ctx, &actualConfigMap, client.MergeFrom(&actualConfigMap))
+				return ctrl.Result{}, writer.Update(ctx, &actualConfigMap)
 			},
 			nil
 	}

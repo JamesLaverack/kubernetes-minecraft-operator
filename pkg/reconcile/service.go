@@ -37,7 +37,7 @@ func ReconcileService(ctx context.Context, logger *zap.SugaredLogger, reader cli
 		return &actualService,
 			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting owner reference on Service")
-				return ctrl.Result{}, writer.Patch(ctx, &actualService, client.MergeFrom(&actualService))
+				return ctrl.Result{}, writer.Update(ctx, &actualService)
 			},
 			nil
 	}
@@ -46,7 +46,7 @@ func ReconcileService(ctx context.Context, logger *zap.SugaredLogger, reader cli
 		return &actualService,
 			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Service spec is incorrect, patching")
-				return ctrl.Result{}, writer.Patch(ctx, &actualService, client.MergeFrom(&actualService))
+				return ctrl.Result{}, writer.Update(ctx, &actualService)
 			},
 			nil
 	}

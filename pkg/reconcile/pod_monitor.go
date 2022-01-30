@@ -52,7 +52,7 @@ func ReconcilePodMonitorExists(ctx context.Context, logger *zap.SugaredLogger, r
 		return &actualPodMonitor,
 			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting owner reference on pod monitor")
-				return ctrl.Result{}, writer.Patch(ctx, &actualPodMonitor, client.MergeFrom(&actualPodMonitor))
+				return ctrl.Result{}, writer.Update(ctx, &actualPodMonitor)
 			},
 			nil
 	}
@@ -60,8 +60,8 @@ func ReconcilePodMonitorExists(ctx context.Context, logger *zap.SugaredLogger, r
 	if reflect.DeepEqual(expectedPodMonitor.Spec, actualPodMonitor.Spec) {
 		return &actualPodMonitor,
 			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
-				logger.Info("pod monitor spec is incorrect, patching")
-				return ctrl.Result{}, writer.Patch(ctx, &actualPodMonitor, client.MergeFrom(&actualPodMonitor))
+				logger.Info("pod monitor spec is incorrect, updating")
+				return ctrl.Result{}, writer.Update(ctx, &actualPodMonitor)
 			},
 			nil
 	}

@@ -44,7 +44,7 @@ func ReconcilePod(ctx context.Context, logger *zap.SugaredLogger, reader client.
 		return &actualPod,
 			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting owner reference on pod")
-				return ctrl.Result{}, writer.Patch(ctx, &actualPod, client.MergeFrom(&actualPod))
+				return ctrl.Result{}, writer.Update(ctx, &actualPod)
 			},
 			nil
 	}
@@ -57,7 +57,7 @@ func ReconcilePod(ctx context.Context, logger *zap.SugaredLogger, reader client.
 		return &actualPod,
 			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting labels correctly on pod")
-				return ctrl.Result{}, writer.Patch(ctx, &actualPod, client.MergeFrom(&actualPod))
+				return ctrl.Result{}, writer.Update(ctx, &actualPod)
 			},
 			nil
 	}
