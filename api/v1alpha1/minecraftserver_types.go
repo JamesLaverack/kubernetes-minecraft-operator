@@ -60,19 +60,24 @@ type VanillaTweaks struct {
 	Experimental  []string `json:"experimental,omitempty"`
 }
 
+type MonitoringSpec struct {
+	Enabled bool `json:"enabled"`
+}
+
 // MinecraftServerSpec defines the desired state of MinecraftServer
 type MinecraftServerSpec struct {
-	EULA              EULAAcceptance `json:"eula"`
-	MinecraftVersion  string         `json:"minecraftVersion"`
-	Type              ServerType     `json:"type"`
-	AllowList         []Player       `json:"allowList,omitempty"`
-	OpsList           []Player       `json:"opsList,omitempty"`
-	World             *WorldSpec     `json:"world,omitempty"`
-	MOTD              string         `json:"motd"`
-	MaxPlayers        int            `json:"maxPlayers"`
-	ViewDistance      int            `json:"viewDistance"`
-	ExternalServiceIP string         `json:"externalServiceIP"`
-	VanillaTweaks     *VanillaTweaks `json:"vanillaTweaks,omitempty"`
+	EULA              EULAAcceptance  `json:"eula"`
+	MinecraftVersion  string          `json:"minecraftVersion"`
+	Type              ServerType      `json:"type"`
+	AllowList         []Player        `json:"allowList,omitempty"`
+	OpsList           []Player        `json:"opsList,omitempty"`
+	World             *WorldSpec      `json:"world,omitempty"`
+	MOTD              string          `json:"motd"`
+	MaxPlayers        int             `json:"maxPlayers"`
+	ViewDistance      int             `json:"viewDistance"`
+	ExternalServiceIP string          `json:"externalServiceIP"`
+	VanillaTweaks     *VanillaTweaks  `json:"vanillaTweaks,omitempty"`
+	Monitoring        *MonitoringSpec `json:"monitoring,omitempty"`
 }
 
 // MinecraftServerStatus defines the observed state of MinecraftServer

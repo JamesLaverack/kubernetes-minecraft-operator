@@ -30,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	uberzap "go.uber.org/zap"
 
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
 	"github.com/jameslaverack/minecraft-operator/controllers"
@@ -78,9 +79,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	logger, err := uberzap.NewProduction()
+	if err != nil {
+		setupLog.Error(err, "unable to start logging")
+		os.Exit(1)
+	}
+	defer logger.Sync()
+
 	if err = (&controllers.MinecraftServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		Logger: logger.Sugar(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MinecraftServer")
 		os.Exit(1)

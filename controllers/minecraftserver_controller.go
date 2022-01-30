@@ -18,25 +18,21 @@ package controllers
 
 import (
 	"context"
-	"github.com/blang/semver"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/minecraft-operator/pkg/reconcile"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/json"
-	"path/filepath"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strconv"
 )
 
 // MinecraftServerReconciler reconciles a MinecraftServer object
 type MinecraftServerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Logger *zap.SugaredLogger
 }
 
 //+kubebuilder:rbac:groups=minecraft.jameslaverack.com,resources=minecraftservers,verbs=get;list;watch;create;update;patch;delete
@@ -47,378 +43,77 @@ type MinecraftServerReconciler struct {
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 
 func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := r.Logger.With("name", req.Name, "namespace", req.Namespace)
+
+	// Go back to the API server with a get to find the full definition of the MinecraftServer object (we're only given
+	// the name and namespace at this point). We also might fail to find it, as we might have been triggered to
+	// reconcile because the object was deleted. In this case we don't need to do any cleanup, as we set the owner
+	// references on every other object we create so the API server's normal cascading delete behaviour will clean up
+	// everything.
 	var server minecraftv1alpha1.MinecraftServer
 	if err := r.Get(ctx, req.NamespacedName, &server); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	configFiles, err := configMapForServer(server.Spec)
+	// We'll now create each resource we need. In general we'll "reconcile" each resource in turn. If there's work to be
+	// done we'll do it an exit instantly. This is because this function is triggered on changes to owned resources, so
+	// the act of creating or modifying an owned resource will cause this function to be called again anyway.
+
+	// Config map. This holds configuration files for Minecraft, along with things like the vanilla tweaks config JSON.
+	configMap, action, err := reconcile.ReconcileConfigMap(ctx, logger, r, &server)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
-	desiredConfigMap := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            server.Name,
-			Namespace:       server.Namespace,
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(&server, minecraftv1alpha1.GroupVersion.WithKind("MinecraftServer"))},
-		},
-		Data: configFiles,
-	}
-	var actualConfigMap corev1.ConfigMap
-	if err := r.Get(ctx, client.ObjectKeyFromObject(&desiredConfigMap), &actualConfigMap); err != nil {
-		if apierrors.IsNotFound(err) {
-			// No CM, make it and exit.
-			return ctrl.Result{}, r.Create(ctx, &desiredConfigMap)
-		}
-		// Some error on the GET that *isn't* a not found. Take no further action.
-		return ctrl.Result{}, err
-	}
-	// Compare the contents of the actual CM to ours.
-	// TODO handle keys in the files in different orders, JSON encoding differences, etc.
-	if !reflect.DeepEqual(desiredConfigMap.Data, actualConfigMap.Data) ||
-		!reflect.DeepEqual(desiredConfigMap.OwnerReferences, actualConfigMap.OwnerReferences) {
-		// ConfigMap data isn't correct. Update it.
-		return ctrl.Result{}, r.Update(ctx, &desiredConfigMap)
+	if action != nil {
+		// We've been given an action, so execute it and return the result.
+		logger.Debug("Given action for reconciling Config Map")
+		return action(ctx, logger, r)
 	}
 
-	desiredPod := podForServer(server.Name, server.Namespace, server.Spec)
-	desiredPod.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&server, minecraftv1alpha1.GroupVersion.WithKind("MinecraftServer"))}
-	var actualPod corev1.Pod
-	if err := r.Get(ctx, client.ObjectKeyFromObject(&desiredPod), &actualPod); err != nil {
-		if apierrors.IsNotFound(err) {
-			// No Pod, make it and exit
-			return ctrl.Result{}, r.Create(ctx, &desiredPod)
-		}
+	_, action, err = reconcile.ReconcilePod(ctx, logger, r, &server, configMap)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
-	// TODO Compare the actual pod to our pod. It's immutable maybe but... we should verify. Hard to do though.
+	if action != nil {
+		// We've been given an action, so execute it and return the result.
+		logger.Debug("Given action for reconciling Pod")
+		return action(ctx, logger, r)
+	}
 
-	desiredService := serviceForServer(server.Name, server.Namespace, server.Spec)
-	desiredService.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&server, minecraftv1alpha1.GroupVersion.WithKind("MinecraftServer"))}
-	var actualService corev1.Service
-	if err := r.Get(ctx, client.ObjectKeyFromObject(&desiredService), &actualService); err != nil {
-		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, r.Create(ctx, &desiredService)
-		}
+	// TODO Detect if we need to restart the pod due to a config change. At the moment a Vanilla Tweaks change, for
+	//      example, will result in the configmap being updated but the server won't update. We need to detect if the
+	//      vanilla tweaks that are expected are *actually* loaded and if they're not then restart the pod
+
+	// TODO Handle allowlist and oplist changes. At the moment it won't be updated at all but it also doesn't need a
+	//      Pod restart if we can use RCONS or something.
+
+	_, action, err = reconcile.ReconcileService(ctx, logger, r, &server)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if !reflect.DeepEqual(desiredService.Spec, actualService.Spec) ||
-		!reflect.DeepEqual(desiredService.OwnerReferences, actualService.OwnerReferences) {
-		return ctrl.Result{}, r.Update(ctx, &desiredService)
+	if action != nil {
+		// We've been given an action, so execute it and return the result.
+		logger.Debug("Given action for reconciling Service")
+		return action(ctx, logger, r)
+	}
+
+	if server.Spec.Monitoring.Enabled {
+		_, action, err = reconcile.ReconcilePodMonitorExists(ctx, logger, r, &server)
+	} else {
+		action, err = reconcile.ReconcilePodMonitorNotExists(ctx, logger, r, &server)
+	}
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if action != nil {
+		// We've been given an action, so execute it and return the result.
+		logger.Debug("Given action for reconciling pod monitor")
+		return action(ctx, logger, r)
 	}
 
 	// All good, return
+	logger.Info("All good")
 	return ctrl.Result{}, nil
-}
-
-func serviceForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServerSpec) corev1.Service {
-	service := corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels: map[string]string{
-				"app":       "minecraft",
-				"minecraft": name,
-			},
-		},
-		Spec: corev1.ServiceSpec{
-			// TODO Make configurable
-			Type: corev1.ServiceTypeLoadBalancer,
-			Selector: map[string]string{
-				// TODO Pull these labels into a supporting function or something
-				"app":       "minecraft",
-				"minecraft": name,
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Name: "minecraft",
-					Port: 25565,
-				},
-			},
-		},
-	}
-
-	if spec.ExternalServiceIP != "" {
-		service.Spec.ExternalIPs = []string{spec.ExternalServiceIP}
-	}
-
-	return service
-}
-
-func podForServer(name, namespace string, spec minecraftv1alpha1.MinecraftServerSpec) corev1.Pod {
-	const configVolumeMountName = "config"
-	container := corev1.Container{
-		Name: "minecraft",
-		// TODO Configure version somehow
-		Image: "itzg/minecraft-server:2022.1.1",
-		Env: []corev1.EnvVar{
-			{
-				Name:  "INIT_MEMORY",
-				Value: "2g",
-			},
-			{
-				Name:  "MAX_MEMORY",
-				Value: "6g",
-			},
-			{
-				Name:  "VERSION",
-				Value: spec.MinecraftVersion,
-			},
-			{
-				Name:  "TYPE",
-				Value: string(spec.Type),
-			},
-			{
-				// In theory this is redundant as the /data directory isn't mounted or persisted directly, so files
-				// like /data/server.properties will be destroyed on restart. But better safe than sorry with config
-				// file changes.
-				Name:  "OVERRIDE_SERVER_PROPERTIES",
-				Value: "true",
-			},
-			{
-				// TODO Make configurable if you want a public server I guess
-				Name:  "ENABLE_WHITELIST",
-				Value: "TRUE",
-			},
-			{
-				Name:  "WHITELIST_FILE",
-				Value: "/data/config/whitelist.json",
-			},
-			{
-				Name:  "OVERRIDE_WHITELIST",
-				Value: "true",
-			},
-			{
-				Name:  "OPS_FILE",
-				Value: "/data/config/ops.json",
-			},
-			{
-				Name:  "OVERRIDE_OPS",
-				Value: "true",
-			},
-			{
-				// TODO Make configurable if you want a public server I guess
-				Name:  "ENFORCE_WHITELIST",
-				Value: "TRUE",
-			},
-			{
-				Name:  "ENABLE_RCON",
-				Value: "false",
-			},
-			{
-				Name:  "FORCE_GAMEMODE",
-				Value: "true",
-			},
-			{
-				Name: "SPAWN_PROTECTION",
-				// This disables spawn protection
-				Value: "0",
-			},
-			{
-				// TODO Make configurable
-				Name:  "MODE",
-				Value: "survival",
-			},
-			{
-				Name:  "ENABLE_ROLLING_LOGS",
-				Value: "true",
-			},
-			{
-				Name:  "SYNC_SKIP_NEWER_IN_DESTINATION",
-				Value: "true",
-			},
-		},
-		// TODO Make resources configurable
-		Resources: corev1.ResourceRequirements{
-			Limits: corev1.ResourceList{
-				corev1.ResourceMemory: resource.MustParse("6Gi"),
-				// No CPU limit to avoid CPU throttling
-			},
-			Requests: corev1.ResourceList{
-				corev1.ResourceMemory: resource.MustParse("2.5Gi"),
-				corev1.ResourceCPU:    resource.MustParse("2"),
-			},
-		},
-		Ports: []corev1.ContainerPort{
-			// TODO Add metrics
-			{
-				Name:          "minecraft",
-				ContainerPort: 25565,
-			},
-		},
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      configVolumeMountName,
-				MountPath: "/config",
-			},
-		},
-	}
-
-	pod := corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels: map[string]string{
-				"app":       "minecraft",
-				"minecraft": name,
-			},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{},
-			Volumes: []corev1.Volume{
-				{
-					Name: configVolumeMountName,
-					VolumeSource: corev1.VolumeSource{
-						ConfigMap: &corev1.ConfigMapVolumeSource{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: name,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	if spec.World != nil {
-		const levelName = "world"
-		const levelNameNether = "world_nether"
-		const levelNameTheEnd = "world_the_end"
-		const worldVolumeMountName = "world"
-		pod.Spec.Volumes = append(pod.Spec.Volumes,
-			corev1.Volume{
-				Name: worldVolumeMountName,
-				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: spec.World.PersistentVolumeClaim,
-				},
-			})
-		container.VolumeMounts = append(container.VolumeMounts,
-			corev1.VolumeMount{
-				Name: worldVolumeMountName,
-				// TODO Account for the fact that we might be running on Windows and therefore filepath.Join will do the
-				//      wrong kind of filepath joining?
-				MountPath: filepath.Join("/data/", levelName),
-				SubPath:   levelName,
-			},
-			corev1.VolumeMount{
-				Name:      worldVolumeMountName,
-				MountPath: filepath.Join("/data/", levelNameNether),
-				SubPath:   levelNameNether,
-			},
-			corev1.VolumeMount{
-				Name:      worldVolumeMountName,
-				MountPath: filepath.Join("/data/", levelNameTheEnd),
-				SubPath:   levelNameTheEnd,
-			},
-		)
-		container.Env = append(container.Env, corev1.EnvVar{
-			Name:  "LEVEL",
-			Value: levelName,
-		})
-	}
-
-	if spec.MOTD != "" {
-		container.Env = append(container.Env, corev1.EnvVar{
-			Name:  "MOTD",
-			Value: spec.MOTD,
-		})
-	}
-
-	if spec.EULA == minecraftv1alpha1.EULAAcceptanceAccepted {
-		container.Env = append(container.Env, corev1.EnvVar{
-			Name:  "EULA",
-			Value: "true",
-		})
-	}
-
-	if spec.MaxPlayers > 0 {
-		container.Env = append(container.Env, corev1.EnvVar{
-			Name:  "MAX_PLAYERS",
-			Value: strconv.Itoa(spec.MaxPlayers),
-		})
-	}
-
-	if spec.ViewDistance > 0 {
-		container.Env = append(container.Env, corev1.EnvVar{
-			Name:  "VIEW_DISTANCE",
-			Value: strconv.Itoa(spec.ViewDistance),
-		})
-	}
-
-	if spec.VanillaTweaks != nil {
-		container.Env = append(container.Env,
-			corev1.EnvVar{
-				Name:  "VANILLATWEAKS_FILE",
-				Value: "/config/vanilla_tweaks.json",
-			},
-			corev1.EnvVar{
-				Name:  "REMOVE_OLD_VANILLATWEAKS",
-				Value: "true",
-			})
-	}
-
-	// Do this last, just before return
-	pod.Spec.Containers = append(pod.Spec.Containers, container)
-
-	return pod
-}
-
-func configMapForServer(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]string, error) {
-	config := make(map[string]string)
-
-	if len(spec.AllowList) > 0 {
-		// We can directly marshall the Player objects
-		d, err := json.Marshal(spec.AllowList)
-		if err != nil {
-			return nil, err
-		}
-		config["whitelist.json"] = string(d)
-	}
-
-	if len(spec.OpsList) > 0 {
-		type op struct {
-			UUID                string `json:"uuid,omitempty"`
-			Name                string `json:"name,omitempty"`
-			Level               int    `json:"level"`
-			BypassesPlayerLimit string `json:"bypassesPlayerLimit"`
-		}
-		ops := make([]op, len(spec.OpsList))
-		for i, o := range spec.OpsList {
-			ops[i] = op{
-				UUID:                o.UUID,
-				Name:                o.Name,
-				Level:               4,
-				BypassesPlayerLimit: "false",
-			}
-		}
-		d, err := json.Marshal(ops)
-		if err != nil {
-			return nil, err
-		}
-		config["ops.json"] = string(d)
-	}
-
-	if spec.VanillaTweaks != nil {
-		version, err := semver.Parse(spec.MinecraftVersion)
-		if err != nil {
-			return nil, err
-		}
-		minorVersion := strconv.Itoa(int(version.Major)) + "." + strconv.Itoa(int(version.Minor))
-		d, err := json.Marshal(struct {
-			Version string                          `json:"version"`
-			Packs   minecraftv1alpha1.VanillaTweaks `json:"packs"`
-		}{
-			Version: minorVersion,
-			Packs:   *spec.VanillaTweaks,
-		})
-		if err != nil {
-			return nil, err
-		}
-		config["vanilla_tweaks.json"] = string(d)
-	}
-
-	return config, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -428,5 +123,6 @@ func (r *MinecraftServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Pod{}).
 		Owns(&corev1.Service{}).
+		Owns(&monitoringv1.PodMonitor{}).
 		Complete(r)
 }

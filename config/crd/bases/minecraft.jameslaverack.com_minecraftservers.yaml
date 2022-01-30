@@ -64,6 +64,13 @@ spec:
                 type: integer
               minecraftVersion:
                 type: string
+              monitoring:
+                properties:
+                  enabled:
+                    type: boolean
+                required:
+                - enabled
+                type: object
               motd:
                 type: string
               opsList:
