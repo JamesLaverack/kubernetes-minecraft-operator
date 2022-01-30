@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path/filepath"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
@@ -62,14 +61,15 @@ func ReconcilePod(ctx context.Context, logger *zap.SugaredLogger, reader client.
 			nil
 	}
 
-	if reflect.DeepEqual(expectedPod.Spec, actualPod.Spec) {
-		return &actualPod,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
-				logger.Info("Pod spec is incorrect, deleting")
-				return ctrl.Result{}, writer.Delete(ctx, &actualPod)
-			},
-			nil
-	}
+	// TODO Detect and fix Pod changes
+	//if !reflect.DeepEqual(expectedPod.Spec, actualPod.Spec) {
+	//	return &actualPod,
+	//		func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+	//			logger.Info("Pod spec is incorrect, deleting")
+	//			return ctrl.Result{}, writer.Delete(ctx, &actualPod)
+	//		},
+	//		nil
+	//}
 
 	logger.Debug("Pod all okay")
 	return &actualPod, nil, nil
