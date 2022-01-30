@@ -34,7 +34,7 @@ func hasCorrectOwnerReference(server *minecraftv1alpha1.MinecraftServer, actual 
 	for _, ow := range actual.GetOwnerReferences() {
 		if ow.APIVersion == expected.APIVersion &&
 			ow.Name == expected.Name &&
-			ow.Kind == expected.Name {
+			ow.Kind == expected.Kind {
 			return true
 		}
 	}
