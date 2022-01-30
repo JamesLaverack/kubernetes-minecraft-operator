@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/ghodss/yaml v1.0.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/pkg/errors v0.9.1
