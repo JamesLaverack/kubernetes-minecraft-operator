@@ -97,19 +97,19 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return action(ctx, logger, r)
 	}
 
-	if server.Spec.Monitoring.Enabled {
-		_, action, err = reconcile.ReconcilePodMonitorExists(ctx, logger, r, &server)
-	} else {
-		action, err = reconcile.ReconcilePodMonitorNotExists(ctx, logger, r, &server)
-	}
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	if action != nil {
-		// We've been given an action, so execute it and return the result.
-		logger.Debug("Given action for reconciling pod monitor")
-		return action(ctx, logger, r)
-	}
+	//if server.Spec.Monitoring.Enabled {
+	//	_, action, err = reconcile.ReconcilePodMonitorExists(ctx, logger, r, &server)
+	//} else {
+	//	action, err = reconcile.ReconcilePodMonitorNotExists(ctx, logger, r, &server)
+	//}
+	//if err != nil {
+	//	return ctrl.Result{}, err
+	//}
+	//if action != nil {
+	//	// We've been given an action, so execute it and return the result.
+	//	logger.Debug("Given action for reconciling pod monitor")
+	//	return action(ctx, logger, r)
+	//}
 
 	// All good, return
 	logger.Info("All good")
