@@ -32,7 +32,9 @@ func ownerReference(server *minecraftv1alpha1.MinecraftServer) metav1.OwnerRefer
 func hasCorrectOwnerReference(server *minecraftv1alpha1.MinecraftServer, actual metav1.Object) bool {
 	expected := ownerReference(server)
 	for _, ow := range actual.GetOwnerReferences() {
-		if ow == expected {
+		if ow.APIVersion == expected.APIVersion &&
+			ow.Name == expected.Name &&
+			ow.Kind == expected.Name {
 			return true
 		}
 	}
