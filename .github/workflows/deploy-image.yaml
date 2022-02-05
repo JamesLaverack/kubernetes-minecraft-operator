@@ -33,6 +33,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Formatting
+        run: make fmt vet && git diff-index --quiet HEAD --
+
       - name: Test
         run: make test
 
