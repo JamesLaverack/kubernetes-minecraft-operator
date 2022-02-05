@@ -201,6 +201,8 @@ func TestMinecraftServer(t *testing.T) {
 	assert.Equal(t, int32(25565), servicePort.Port)
 	assert.Equal(t, corev1.ProtocolTCP, servicePort.Protocol)
 
+	// Check there is a selector at all
+	assert.GreaterOrEqual(t, len(service.Spec.Selector), 1)
 	// Check that the Pod will be found by the selector on the service
 	for k, v := range service.Spec.Selector {
 		assert.Equal(t, v, pod.Labels[k])
