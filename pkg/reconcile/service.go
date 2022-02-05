@@ -58,8 +58,9 @@ func ReconcileService(ctx context.Context, logger logr.Logger, reader client.Rea
 func serviceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service {
 	service := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.Name,
-			Namespace: server.Namespace,
+			Name:            server.Name,
+			Namespace:       server.Namespace,
+			OwnerReferences: []metav1.OwnerReference{ownerReference(server)},
 		},
 		Spec: corev1.ServiceSpec{
 			// TODO Make configurable
@@ -67,8 +68,9 @@ func serviceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service 
 			Selector: podLabels(server),
 			Ports: []corev1.ServicePort{
 				{
-					Name: "minecraft",
-					Port: 25565,
+					Name:     "minecraft",
+					Port:     25565,
+					Protocol: corev1.ProtocolTCP,
 				},
 			},
 		},

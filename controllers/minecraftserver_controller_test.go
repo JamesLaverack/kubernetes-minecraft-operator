@@ -147,41 +147,58 @@ func TestMinecraftServer(t *testing.T) {
 	// TODO Find a better way to know when the reconciler is done
 	time.Sleep(time.Second * 10)
 
+	assertOwnerReference := func(object metav1.Object) {
+		require.Len(t, object.GetOwnerReferences(), 1)
+		or := object.GetOwnerReferences()[0]
+		assert.Equal(t, serverObj.Name, or.Name)
+		assert.Equal(t, "MinecraftServer", or.Kind)
+		assert.Equal(t, "minecraft.jameslaverack.com/v1alpha1", or.APIVersion)
+		assert.True(t, *or.Controller)
+	}
+
 	// We expect the server to create a few things
-	t.Run("config map", func(t *testing.T) {
-		var configMap corev1.ConfigMap
-		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&serverObj), &configMap)
-		require.NoError(t, err)
-		require.NotNil(t, configMap)
-		assert.NotEmpty(t, configMap.Data["ops.json"])
-	})
+	var configMap corev1.ConfigMap
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&serverObj), &configMap)
+	require.NoError(t, err)
+	assertOwnerReference(&configMap)
+	assert.NotEmpty(t, configMap.Data["ops.json"])
 
-	t.Run("pod", func(t *testing.T) {
-		var pod corev1.Pod
-		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&serverObj), &pod)
-		require.NoError(t, err)
-		require.NotNil(t, pod)
-		spec := pod.Spec
-		require.NotNil(t, spec)
+	var pod corev1.Pod
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&serverObj), &pod)
+	require.NoError(t, err)
+	assertOwnerReference(&pod)
+	spec := pod.Spec
+	require.NotNil(t, spec)
 
-		// Find the container
-		require.Equal(t, 1, len(spec.Containers))
-		container := spec.Containers[0]
+	// Find the container
+	require.Len(t, spec.Containers, 1)
+	container := spec.Containers[0]
 
-		assert.Equal(t, "itzg/minecraft-server:2022.1.1", container.Image)
-		assert.Equal(t, "minecraft", container.Name)
+	assert.Equal(t, "itzg/minecraft-server:2022.1.1", container.Image)
+	assert.Equal(t, "minecraft", container.Name)
 
-		assertEnv := func(name, value string) {
-			assert.Contains(t, container.Env, corev1.EnvVar{
-				Name:  name,
-				Value: value,
-			})
-		}
+	assertEnv := func(name, value string) {
+		assert.Contains(t, container.Env, corev1.EnvVar{
+			Name:  name,
+			Value: value,
+		})
+	}
 
-		assertEnv("VERSION", serverObj.Spec.MinecraftVersion)
-		assertEnv("TYPE", string(serverObj.Spec.Type))
-		assertEnv("MODE", "survival")
-		assertEnv("ENABLE_ROLLING_LOGS", "true")
+	assertEnv("VERSION", serverObj.Spec.MinecraftVersion)
+	assertEnv("TYPE", string(serverObj.Spec.Type))
+	assertEnv("MODE", "survival")
+	assertEnv("ENABLE_ROLLING_LOGS", "true")
 
-	})
+	var service corev1.Service
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&serverObj), &service)
+	require.NoError(t, err)
+	assertOwnerReference(&service)
+
+	assert.Equal(t, corev1.ServiceTypeLoadBalancer, service.Spec.Type)
+	require.Len(t, service.Spec.Ports, 1)
+	servicePort := service.Spec.Ports[0]
+	assert.Equal(t, "minecraft", servicePort.Name)
+	assert.Equal(t, int32(25565), servicePort.Port)
+	assert.Equal(t, corev1.ProtocolTCP, servicePort.Protocol)
+
 }

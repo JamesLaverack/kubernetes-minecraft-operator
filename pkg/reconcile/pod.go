@@ -187,9 +187,10 @@ func podForServer(server *v1alpha1.MinecraftServer, configMap *corev1.ConfigMap)
 
 	pod := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      server.Name,
-			Namespace: server.Namespace,
-			Labels:    podLabels(server),
+			Name:            server.Name,
+			Namespace:       server.Namespace,
+			Labels:          podLabels(server),
+			OwnerReferences: []metav1.OwnerReference{ownerReference(server)},
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{},
