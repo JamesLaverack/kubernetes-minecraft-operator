@@ -306,7 +306,7 @@ func podForServer(server *v1alpha1.MinecraftServer, configMap *corev1.ConfigMap)
 						},
 						Items: []corev1.KeyToPath{
 							{
-								Key: "prometheus_exporter_config.yaml",
+								Key:  "prometheus_exporter_config.yaml",
 								Path: "config.yml",
 							},
 						},
@@ -315,9 +315,9 @@ func podForServer(server *v1alpha1.MinecraftServer, configMap *corev1.ConfigMap)
 			})
 		container.VolumeMounts = append(container.VolumeMounts,
 			corev1.VolumeMount{
-				Name: "prometheusExporterConfig",
+				Name:      "prometheusExporterConfig",
 				MountPath: "/data/plugins/PrometheusExporter",
-				SubPath: "config.yml",
+				SubPath:   "config.yml",
 			})
 	}
 
