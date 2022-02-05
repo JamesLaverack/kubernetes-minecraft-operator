@@ -4,9 +4,9 @@ import (
 	"context"
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
+	"github.com/go-logr/logr"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +17,7 @@ import (
 	"strconv"
 )
 
-func ReconcileConfigMap(ctx context.Context, logger *zap.SugaredLogger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (*corev1.ConfigMap, ReconcileAction, error) {
+func ReconcileConfigMap(ctx context.Context, logger logr.Logger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (*corev1.ConfigMap, ReconcileAction, error) {
 	data, err := configMapData(server.Spec)
 	if err != nil {
 		return nil, nil, err
@@ -38,7 +38,7 @@ func ReconcileConfigMap(ctx context.Context, logger *zap.SugaredLogger, reader c
 			Data: data,
 		}
 		return &expectedConfigMap,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Creating config map with Minecraft configuration files")
 				return ctrl.Result{}, writer.Create(ctx, &expectedConfigMap)
 			},
@@ -55,7 +55,7 @@ func ReconcileConfigMap(ctx context.Context, logger *zap.SugaredLogger, reader c
 		// Set the right owner reference. Adding it to any existing ones.
 		actualConfigMap.OwnerReferences = append(actualConfigMap.OwnerReferences, ownerReference(server))
 		return &actualConfigMap,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting owner reference on configmap")
 				return ctrl.Result{}, writer.Update(ctx, &actualConfigMap)
 			},
@@ -65,7 +65,7 @@ func ReconcileConfigMap(ctx context.Context, logger *zap.SugaredLogger, reader c
 		// Correct the data field
 		actualConfigMap.Data = data
 		return &actualConfigMap,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Correcting data on configmap")
 				return ctrl.Result{}, writer.Update(ctx, &actualConfigMap)
 			},
@@ -73,7 +73,7 @@ func ReconcileConfigMap(ctx context.Context, logger *zap.SugaredLogger, reader c
 	}
 	// We don't set or need any labels or annotations, so don't bother checking those
 
-	logger.Debug("Configmap all okay")
+	logger.V(1).Info("Configmap all okay")
 	return &actualConfigMap, nil, nil
 }
 
@@ -131,7 +131,7 @@ func configMapData(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]strin
 		config["vanilla_tweaks.json"] = string(d)
 	}
 
-	if spec.Monitoring.Enabled {
+	if spec.Monitoring != nil && spec.Monitoring.Enabled {
 		// prometheus-exporter plugin file
 		c := map[string]interface{}{
 			// This is the important bit, by default this plugin binds to localhost which isn't useful in K8s

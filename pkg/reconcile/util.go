@@ -2,15 +2,15 @@ package reconcile
 
 import (
 	"context"
+	"github.com/go-logr/logr"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
-	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ReconcileAction represents a single, simple action to take. The action itself returns a result and an error
-type ReconcileAction func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error)
+type ReconcileAction func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error)
 
 // hasCorrectLabels verifies that the actual labels on a object include the expected labels. We're perfectly okay with
 // *extra* labels (which may be added by webhooks or whatever), but we want to verify that we have all of the labels we

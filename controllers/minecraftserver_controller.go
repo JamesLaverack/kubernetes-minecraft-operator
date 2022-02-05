@@ -20,18 +20,17 @@ import (
 	"context"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
 	"github.com/jameslaverack/minecraft-operator/pkg/reconcile"
-	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // MinecraftServerReconciler reconciles a MinecraftServer object
 type MinecraftServerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Logger *zap.SugaredLogger
 }
 
 //+kubebuilder:rbac:groups=minecraft.jameslaverack.com,resources=minecraftservers,verbs=get;list;watch;create;update;patch;delete
@@ -43,8 +42,14 @@ type MinecraftServerReconciler struct {
 //+kubebuilder:rbac:groups=monitoring.coreos.com,resources=podmonitors,verbs=get;list;watch;create;update;patch;delete
 
 func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := r.Logger.With("name", req.Name, "namespace", req.Namespace)
+	logger := log.Log.
+		WithName("controller").
+		WithName("minecraftserver").
+		WithValues(
+			"name", req.Name,
+			"namespace", req.Namespace)
 
+	logger.Info("beginning reconciliation")
 	// Go back to the API server with a get to find the full definition of the MinecraftServer object (we're only given
 	// the name and namespace at this point). We also might fail to find it, as we might have been triggered to
 	// reconcile because the object was deleted. In this case we don't need to do any cleanup, as we set the owner
@@ -60,24 +65,24 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	// the act of creating or modifying an owned resource will cause this function to be called again anyway.
 
 	// Config map. This holds configuration files for Minecraft, along with things like the vanilla tweaks config JSON.
-	configMap, action, err := reconcile.ReconcileConfigMap(ctx, logger, r, &server)
+	configMap, action, err := reconcile.ReconcileConfigMap(ctx, logger.WithName("configmap"), r, &server)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 	if action != nil {
 		// We've been given an action, so execute it and return the result.
-		logger.Debug("Given action for reconciling Config Map")
-		return action(ctx, logger, r)
+		logger.V(1).Info("Given action for reconciling Config Map")
+		return action(ctx, logger.WithName("configmap").WithName("action"), r)
 	}
 
-	_, action, err = reconcile.ReconcilePod(ctx, logger, r, &server, configMap)
+	_, action, err = reconcile.ReconcilePod(ctx, logger.WithName("pod"), r, &server, configMap)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 	if action != nil {
 		// We've been given an action, so execute it and return the result.
-		logger.Debug("Given action for reconciling Pod")
-		return action(ctx, logger, r)
+		logger.V(1).Info("Given action for reconciling Pod")
+		return action(ctx, logger.WithName("pod").WithName("action"), r)
 	}
 
 	// TODO Detect if we need to restart the pod due to a config change. At the moment a Vanilla Tweaks change, for
@@ -87,14 +92,14 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	// TODO Handle allowlist and oplist changes. At the moment it won't be updated at all but it also doesn't need a
 	//      Pod restart if we can use RCONS or something.
 
-	_, action, err = reconcile.ReconcileService(ctx, logger, r, &server)
+	_, action, err = reconcile.ReconcileService(ctx, logger.WithName("service"), r, &server)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 	if action != nil {
 		// We've been given an action, so execute it and return the result.
-		logger.Debug("Given action for reconciling Service")
-		return action(ctx, logger, r)
+		logger.V(1).Info("Given action for reconciling Service")
+		return action(ctx, logger.WithName("service").WithName("action"), r)
 	}
 
 	//if server.Spec.Monitoring.Enabled {

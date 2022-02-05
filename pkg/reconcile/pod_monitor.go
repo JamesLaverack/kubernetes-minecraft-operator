@@ -2,9 +2,9 @@ package reconcile
 
 import (
 	"context"
+	"github.com/go-logr/logr"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func ReconcilePodMonitorNotExists(ctx context.Context, logger *zap.SugaredLogger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (ReconcileAction, error) {
+func ReconcilePodMonitorNotExists(ctx context.Context, logger logr.Logger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (ReconcileAction, error) {
 	expectedPodMonitor := podMonitor(server)
 	var actualPodMonitor monitoringv1.PodMonitor
 	err := reader.Get(ctx, client.ObjectKeyFromObject(&expectedPodMonitor), &actualPodMonitor)
@@ -20,14 +20,14 @@ func ReconcilePodMonitorNotExists(ctx context.Context, logger *zap.SugaredLogger
 		// All good.
 		return nil, client.IgnoreNotFound(err)
 	}
-	return func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+	return func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 			logger.Info("Deleting Pod Monitor")
 			return ctrl.Result{}, writer.Delete(ctx, &expectedPodMonitor)
 		},
 		nil
 }
 
-func ReconcilePodMonitorExists(ctx context.Context, logger *zap.SugaredLogger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (*monitoringv1.PodMonitor, ReconcileAction, error) {
+func ReconcilePodMonitorExists(ctx context.Context, logger logr.Logger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (*monitoringv1.PodMonitor, ReconcileAction, error) {
 	expectedPodMonitor := podMonitor(server)
 
 	var actualPodMonitor monitoringv1.PodMonitor
@@ -35,7 +35,7 @@ func ReconcilePodMonitorExists(ctx context.Context, logger *zap.SugaredLogger, r
 	if apierrors.IsNotFound(err) {
 		// Pretty simple, just create it
 		return &expectedPodMonitor,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Creating Pod Monitor")
 				return ctrl.Result{}, writer.Create(ctx, &expectedPodMonitor)
 			},
@@ -50,7 +50,7 @@ func ReconcilePodMonitorExists(ctx context.Context, logger *zap.SugaredLogger, r
 		// Set the right owner reference. Adding it to any existing ones.
 		actualPodMonitor.OwnerReferences = append(actualPodMonitor.OwnerReferences, ownerReference(server))
 		return &actualPodMonitor,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting owner reference on pod monitor")
 				return ctrl.Result{}, writer.Update(ctx, &actualPodMonitor)
 			},
@@ -59,14 +59,14 @@ func ReconcilePodMonitorExists(ctx context.Context, logger *zap.SugaredLogger, r
 
 	if reflect.DeepEqual(expectedPodMonitor.Spec, actualPodMonitor.Spec) {
 		return &actualPodMonitor,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("pod monitor spec is incorrect, updating")
 				return ctrl.Result{}, writer.Update(ctx, &actualPodMonitor)
 			},
 			nil
 	}
 
-	logger.Debug("pod monitor all okay")
+	logger.V(0).Info("pod monitor all okay")
 	return &actualPodMonitor, nil, nil
 }
 

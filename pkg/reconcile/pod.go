@@ -2,9 +2,9 @@ package reconcile
 
 import (
 	"context"
+	"github.com/go-logr/logr"
 	"github.com/jameslaverack/minecraft-operator/api/v1alpha1"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
-	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-func ReconcilePod(ctx context.Context, logger *zap.SugaredLogger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer, cm *corev1.ConfigMap) (*corev1.Pod, ReconcileAction, error) {
+func ReconcilePod(ctx context.Context, logger logr.Logger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer, cm *corev1.ConfigMap) (*corev1.Pod, ReconcileAction, error) {
 	expectedPod := podForServer(server, cm)
 
 	var actualPod corev1.Pod
@@ -24,7 +24,7 @@ func ReconcilePod(ctx context.Context, logger *zap.SugaredLogger, reader client.
 	if apierrors.IsNotFound(err) {
 		// Pretty simple, just create it
 		return &expectedPod,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Creating Minecraft Pod")
 				return ctrl.Result{}, writer.Create(ctx, &expectedPod)
 			},
@@ -41,7 +41,7 @@ func ReconcilePod(ctx context.Context, logger *zap.SugaredLogger, reader client.
 		// Set the right owner reference. Adding it to any existing ones.
 		actualPod.OwnerReferences = append(actualPod.OwnerReferences, ownerReference(server))
 		return &actualPod,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting owner reference on pod")
 				return ctrl.Result{}, writer.Update(ctx, &actualPod)
 			},
@@ -54,7 +54,7 @@ func ReconcilePod(ctx context.Context, logger *zap.SugaredLogger, reader client.
 			actualPod.Labels[k] = v
 		}
 		return &actualPod,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting labels correctly on pod")
 				return ctrl.Result{}, writer.Update(ctx, &actualPod)
 			},
@@ -64,14 +64,14 @@ func ReconcilePod(ctx context.Context, logger *zap.SugaredLogger, reader client.
 	// TODO Detect and fix Pod changes
 	//if !reflect.DeepEqual(expectedPod.Spec, actualPod.Spec) {
 	//	return &actualPod,
-	//		func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+	//		func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 	//			logger.Info("Pod spec is incorrect, deleting")
 	//			return ctrl.Result{}, writer.Delete(ctx, &actualPod)
 	//		},
 	//		nil
 	//}
 
-	logger.Debug("Pod all okay")
+	logger.V(0).Info("Pod all okay")
 	return &actualPod, nil, nil
 }
 

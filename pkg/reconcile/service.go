@@ -2,8 +2,8 @@ package reconcile
 
 import (
 	"context"
+	"github.com/go-logr/logr"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
-	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func ReconcileService(ctx context.Context, logger *zap.SugaredLogger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (*corev1.Service, ReconcileAction, error) {
+func ReconcileService(ctx context.Context, logger logr.Logger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (*corev1.Service, ReconcileAction, error) {
 	expectedService := serviceForServer(server)
 
 	var actualService corev1.Service
@@ -20,7 +20,7 @@ func ReconcileService(ctx context.Context, logger *zap.SugaredLogger, reader cli
 	if apierrors.IsNotFound(err) {
 		// Pretty simple, just create it
 		return &expectedService,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Creating Minecraft Service")
 				return ctrl.Result{}, writer.Create(ctx, &expectedService)
 			},
@@ -35,7 +35,7 @@ func ReconcileService(ctx context.Context, logger *zap.SugaredLogger, reader cli
 		// Set the right owner reference. Adding it to any existing ones.
 		actualService.OwnerReferences = append(actualService.OwnerReferences, ownerReference(server))
 		return &actualService,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting owner reference on Service")
 				return ctrl.Result{}, writer.Update(ctx, &actualService)
 			},
@@ -44,14 +44,14 @@ func ReconcileService(ctx context.Context, logger *zap.SugaredLogger, reader cli
 
 	if reflect.DeepEqual(expectedService.Spec, actualService.Spec) {
 		return &actualService,
-			func(ctx context.Context, logger *zap.SugaredLogger, writer client.Writer) (ctrl.Result, error) {
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Service spec is incorrect, patching")
 				return ctrl.Result{}, writer.Update(ctx, &actualService)
 			},
 			nil
 	}
 
-	logger.Debug("Service all okay")
+	logger.V(0).Info("Service all okay")
 	return &actualService, nil, nil
 }
 
