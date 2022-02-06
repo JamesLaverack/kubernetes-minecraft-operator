@@ -663,7 +663,39 @@ func TestReconcilerFixesPodOwnerReference(t *testing.T) {
 	assertOwnerReference(t, &server, &pod)
 }
 
-func TestReconcilerFixesServerOwnerReference(t *testing.T) {
+func TestReconcilerFixesPodLabels(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var pod corev1.Pod
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &pod)
+
+	// Add a new label *and* modify an old one
+	pod.Labels["app"] = "foo"
+	pod.Labels["my-custom-label"] = "bar"
+
+	err = k8sClient.Update(ctx, &pod)
+	require.NoError(t, err)
+
+	time.Sleep(reconcilerSyncDelay)
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+	// We expect that app will have been corrected, but the custom label to have remained
+	assert.Equal(t, "minecraft", pod.Labels["app"])
+	assert.Equal(t, "bar", pod.Labels["my-custom-label"])
+}
+
+func TestReconcilerFixesServiceOwnerReference(t *testing.T) {
 	ctx := context.Background()
 	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
 	defer teardownFunc()
