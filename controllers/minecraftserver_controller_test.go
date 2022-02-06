@@ -256,6 +256,53 @@ func TestAllowList(t *testing.T) {
 	assertEnv(t, container, "ENFORCE_WHITELIST", "TRUE")
 }
 
+func TestVanillaTweaksDatapack(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	server.Spec.VanillaTweaks = &minecraftv1alpha1.VanillaTweaks{
+		Survival: []string{
+			"multiplayer sleep",
+		},
+	}
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var configMap corev1.ConfigMap
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &configMap)
+	tweaksFile := configMap.Data["vanilla_tweaks.json"]
+	assert.NotEmpty(t, tweaksFile)
+
+	var parsed struct {
+		Version string              `json:"version"`
+		Packs   map[string][]string `json:"packs"`
+	}
+	err = json.Unmarshal([]byte(tweaksFile), &parsed)
+	t.Log(parsed)
+	require.NoError(t, err)
+	assert.Equal(t, "1.18", parsed.Version)
+	assert.Equal(t, map[string][]string{"survival": []string{"multiplayer sleep"}}, parsed.Packs)
+
+	var pod corev1.Pod
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+
+	assertConfigMapAttachedToPod(t, &pod, configMap.Name)
+
+	// Check the ENVVARs are set for the config file. As part of startup the itzg/docker-minecraft-server container
+	// will move files from /config to /data/config, so we should ensure that we're pointing at those.
+	container := pod.Spec.Containers[0]
+	assertEnv(t, container, "VANILLATWEAKS_FILE", "/config/vanilla_tweaks.json")
+	assertEnv(t, container, "REMOVE_OLD_VANILLATWEAKS", "true")
+}
+
 func TestMountedPVC(t *testing.T) {
 	ctx := context.Background()
 	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
