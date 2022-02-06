@@ -15,17 +15,38 @@ supported by itzg either.
 
 ## Installing
 
-Use `make install` from the root of this directory with your cluster configured in `kubectl`.
+You can install the latest version of the operator by running this command with your cluster configured in `kubectl`.
+
+```bash
+$ curl -L https://github.com/JamesLaverack/minecraft-operator/releases/latest/download/operator.yaml | kubectl apply -f -
+```
 
 ### Tags
 
-By default the `latest` tag is used, which is the latest published version. You can also use a specific published version
-using it's tag (e.g., `v0.2.3`) or `edge` if you want the latest commit on the main branch.
+The command above will install the operator at a specific release. You can also change the image tag to either `latest`
+to always get the latest published release or `edge` to get the latest build of the main branch. However, doing so won't
+get you YAML updates (e.g., adding new permissions or custom resource definition updates). (Also the `edge` tag
+publishes *before* tests are run, so it comes with even fewer guarantees than normal.)
+
+### Verify
+
+You can verify everything is working by looking for the operator Pod in the `minecraft-operator-system` namespace, e.g.:
+
+```bash
+$ kubectl --namespace minecraft-operator-system get pod
+NAME                                                     READY   STATUS    RESTARTS   AGE
+minecraft-operator-controller-manager-69f45b8b85-42fsh   2/2     Running   0          7m47s
+```
 
 ## Usage
 
-You can configure a server like this. The operator will create a `Pod` and `Service` to this specification. Note that
-the API uses "allowList" in place of "whitelist", but it is applied to the server in the same way.
+Once the operator is installed, you can create a Minecraft server by creating a `MinecraftServer` object in Kubernetes.
+This will create and manage resources such as a Pod and a Service. Resources are created in whatever namespace the
+`MinecraftServer` object is in.
+
+Note that the API uses "allowList" in place of "whitelist", but it is applied to the server in the same way.
+
+### Example Server
 
 ```yaml
 apiVersion: minecraft.jameslaverack.com/v1alpha1
