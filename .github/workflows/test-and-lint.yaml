@@ -2,7 +2,9 @@ name: Test & Lint
 
 # Run the tests on any branch push
 on:
-  push
+  push:
+    branches:
+     - *
 
 env:
   REGISTRY: ghcr.io
