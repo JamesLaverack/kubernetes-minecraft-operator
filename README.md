@@ -18,7 +18,7 @@ supported by itzg either.
 You can install the latest version of the operator by running this command with your cluster configured in `kubectl`.
 
 ```bash
-$ curl -L https://github.com/JamesLaverack/minecraft-operator/releases/latest/download/operator.yaml | kubectl apply -f -
+curl -L https://github.com/JamesLaverack/minecraft-operator/releases/latest/download/operator.yaml | kubectl apply -f -
 ```
 
 ### Tags
@@ -33,10 +33,10 @@ publishes *before* tests are run, so it comes with even fewer guarantees than no
 You can verify everything is working by looking for the operator Pod in the `minecraft-operator-system` namespace, e.g.:
 
 ```bash
-$ kubectl --namespace minecraft-operator-system get pod
-NAME                                                     READY   STATUS    RESTARTS   AGE
-minecraft-operator-controller-manager-69f45b8b85-42fsh   2/2     Running   0          7m47s
+kubectl --namespace minecraft-operator-system get pod
 ```
+
+If this gives you a running Pod, then it's likely all good.
 
 ## Usage
 
