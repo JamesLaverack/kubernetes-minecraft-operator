@@ -19,7 +19,7 @@ package controllers
 import (
 	"context"
 	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
-	"github.com/jameslaverack/minecraft-operator/pkg/reconcile"
+	"github.com/jameslaverack/minecraft-operator/internal/reconcile"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
