@@ -41,10 +41,11 @@ jobs:
         run: make manifests
 
       - name: Verify No Changes
+        id: verify-no-changes
         uses: tj-actions/verify-changed-files@v8.8
 
       - name: Fail If Changes
-        if: steps.verify-changed-files.outputs.files_changed == 'true'
+        if: steps.verify-no-changes.outputs.files_changed == 'true'
         run: "false"
 
   test:
