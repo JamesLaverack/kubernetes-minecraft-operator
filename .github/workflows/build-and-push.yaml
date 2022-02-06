@@ -1,12 +1,13 @@
 name: Build & Push Container Image
 
+# Push a container image when the main branch is pushed or when
+# a release is published. This isn't dependant on the tests passing
+# or the linter being happy.
 on:
-  workflow_run:
-    workflows: [Test & Lint]
-    types: [completed]
+  push:
     branches: [main]
   release:
-    types: [ published ]
+    types: [published]
 
 env:
   REGISTRY: ghcr.io
@@ -15,7 +16,6 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       packages: write
