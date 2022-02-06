@@ -126,6 +126,31 @@ func assertOwnerReference(t *testing.T, server *minecraftv1alpha1.MinecraftServe
 	assert.True(t, *or.Controller)
 }
 
+func assertConfigMapAttachedToPod(t *testing.T, pod *corev1.Pod, cmName string) {
+	// Find the Volume for this config file
+	found := false
+	volumeName := ""
+	for _, v := range pod.Spec.Volumes {
+		if v.VolumeSource.ConfigMap != nil &&
+			v.VolumeSource.ConfigMap.LocalObjectReference.Name == cmName {
+			// Oh hey found it.
+			found = true
+			volumeName = v.Name
+			assert.Empty(t, v.VolumeSource.ConfigMap.Items)
+			assert.Nil(t, v.VolumeSource.ConfigMap.Optional)
+			break
+		}
+	}
+	assert.True(t, found, "Unable to find Volume on pod for this config map...")
+	// Now find the VolumeMount for this volume on the container, there should be exactly one.
+	container := pod.Spec.Containers[0]
+	assert.Contains(t, container.VolumeMounts, corev1.VolumeMount{
+		Name: volumeName,
+		// the /config directory is used by the itzg/docker-minecraft-server container to copy data from
+		MountPath: "/config",
+	})
+}
+
 func TestOpsList(t *testing.T) {
 	ctx := context.Background()
 	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
@@ -170,31 +195,12 @@ func TestOpsList(t *testing.T) {
 	var pod corev1.Pod
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
 	require.NoError(t, err)
-	// Find the Volume for this config file
-	found := false
-	volumeName := ""
-	for _, v := range pod.Spec.Volumes {
-		if v.VolumeSource.ConfigMap != nil &&
-			v.VolumeSource.ConfigMap.LocalObjectReference.Name == configMap.Name {
-			// Oh hey found it.
-			found = true
-			volumeName = v.Name
-			assert.Empty(t, v.VolumeSource.ConfigMap.Items)
-			assert.Nil(t, v.VolumeSource.ConfigMap.Optional)
-			break
-		}
-	}
-	assert.True(t, found, "Unable to find Volume on pod for this config map...")
-	// Now find the VolumeMount for this volume on the container, there should be exactly one.
-	container := pod.Spec.Containers[0]
-	assert.Contains(t, container.VolumeMounts, corev1.VolumeMount{
-		Name: volumeName,
-		// the /config directory is used by the itzg/docker-minecraft-server container to copy data from
-		MountPath: "/config",
-	})
+
+	assertConfigMapAttachedToPod(t, &pod, configMap.Name)
 
 	// Check the ENVVARs are set for the config file. As part of startup the itzg/docker-minecraft-server container
 	// will move files from /config to /data/config, so we should ensure that we're pointing at those.
+	container := pod.Spec.Containers[0]
 	assertEnv(t, container, "OPS_FILE", "/data/config/ops.json")
 	assertEnv(t, container, "OVERRIDE_OPS", "true")
 }
