@@ -568,3 +568,38 @@ func TestEULA(t *testing.T) {
 		})
 	}
 }
+
+func TestReconcilerFixesConfigMap(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	server.Spec.OpsList = []minecraftv1alpha1.Player{
+		{
+			// There is a real minecraft user with the name "testplayer", sorry!
+			Name: "testplayer",
+			UUID: "28a38b40-120c-4883-9122-61a8727ff578",
+		},
+	}
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var configMap corev1.ConfigMap
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &configMap)
+	opsFile := configMap.Data["ops.json"]
+
+	configMap.Data["ops.json"] = "Bad data"
+	err = k8sClient.Update(ctx, &configMap)
+	require.NoError(t, err)
+
+	time.Sleep(reconcilerSyncDelay)
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
+	require.NoError(t, err)
+	assert.Equalf(t, opsFile, configMap.Data["ops.json"], "Reconciler did not repair modified config map")
+}
