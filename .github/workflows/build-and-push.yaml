@@ -43,7 +43,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=edge,branch=$repo.default_branch
+            type=edge,branch=github.event.repository.default_branch
             type=ref,event=tag
 
       - name: Build and push Docker image
