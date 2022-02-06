@@ -33,7 +33,9 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        kubernetes: [1.21, 1.22, 1.23]
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
@@ -51,4 +53,6 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Test
+        env:
+          ENVTEST_K8S_VERSION: ${{ matrix.kubernets }}
         run: make test
