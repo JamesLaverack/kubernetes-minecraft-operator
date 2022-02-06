@@ -449,6 +449,79 @@ func TestBasicMinecraftServer(t *testing.T) {
 	}
 }
 
+func TestMOTD(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	motd := "My test message of the day"
+	server.Spec.MOTD = motd
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var pod corev1.Pod
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &pod)
+	spec := pod.Spec
+	require.NotNil(t, spec)
+	container := pod.Spec.Containers[0]
+
+	assertEnv(t, container, "MOTD", motd)
+}
+
+func TestViewDistance(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	server.Spec.ViewDistance = 16
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var pod corev1.Pod
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &pod)
+	spec := pod.Spec
+	require.NotNil(t, spec)
+	container := pod.Spec.Containers[0]
+
+	assertEnv(t, container, "VIEW_DISTANCE", "16")
+}
+
+func TestMaxPlayers(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	server.Spec.MaxPlayers = 4
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var pod corev1.Pod
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &pod)
+	spec := pod.Spec
+	require.NotNil(t, spec)
+	container := pod.Spec.Containers[0]
+
+	assertEnv(t, container, "MAX_PLAYERS", "4")
+}
+
 func TestEULA(t *testing.T) {
 	testCases := map[string]struct {
 		EULA string
