@@ -103,6 +103,15 @@ func assertEnv(t *testing.T, container corev1.Container, name, value string) {
 	})
 }
 
+func assertNoEnv(t *testing.T, container corev1.Container, name string) {
+	require.NotNil(t, container)
+	for _, e := range container.Env {
+		if e.Name == name {
+			assert.Fail(t, "Found envvar for %s when we didn't expect it", name)
+		}
+	}
+}
+
 func generateTestServer() minecraftv1alpha1.MinecraftServer {
 	return minecraftv1alpha1.MinecraftServer{
 		ObjectMeta: metav1.ObjectMeta{
@@ -437,5 +446,52 @@ func TestBasicMinecraftServer(t *testing.T) {
 	// Check that the Pod will be found by the selector on the service
 	for k, v := range service.Spec.Selector {
 		assert.Equal(t, v, pod.Labels[k])
+	}
+}
+
+func TestEULA(t *testing.T) {
+	testCases := map[string]struct {
+		EULA string
+		flagExpected bool
+	}{
+		"EULA Accepted": {
+			EULA: string(minecraftv1alpha1.EULAAcceptanceAccepted),
+			flagExpected: true,
+		},
+		"EULA Not Accepted": {
+			EULA: string(minecraftv1alpha1.EULAAcceptanceNotAccepted),
+			flagExpected: false,
+		},
+	}
+
+	for name, tc := range testCases {
+		tc := tc
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+			defer teardownFunc()
+
+			server := generateTestServer()
+			server.Spec.EULA = minecraftv1alpha1.EULAAcceptance(tc.EULA)
+			err := k8sClient.Create(ctx, &server)
+			require.NoError(t, err)
+
+			// TODO Find a better way to know when the reconciler is done
+			time.Sleep(reconcilerSyncDelay)
+
+			var pod corev1.Pod
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+			require.NoError(t, err)
+			assertOwnerReference(t, &server, &pod)
+			spec := pod.Spec
+			require.NotNil(t, spec)
+			container := pod.Spec.Containers[0]
+
+			if tc.flagExpected {
+				assertEnv(t, container, "EULA", "true")
+			} else {
+				assertNoEnv(t, container, "EULA")
+			}
+		})
 	}
 }
