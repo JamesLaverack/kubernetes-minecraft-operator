@@ -210,6 +210,12 @@ func podForServer(server *v1alpha1.MinecraftServer, configMap *corev1.ConfigMap)
 	}
 
 	if server.Spec.World != nil {
+		// We expect our PVC to have directories for each dimension: world/, world_nether/, and world_the_end/. The
+		// container will expect these to be mounted at /data/world/, /data/world_nether/, and /data/world_the_end/. We
+		// don't want to just mount the whole PVC at /data/ as we don't want to persist *other* files that get populated
+		// into that directory.
+		// The solution is to add the PVC as a volume on the pod, and then use three volume mounts on the container to
+		// explicitly mount the PVC three times at each different directory.
 		const levelName = "world"
 		const levelNameNether = "world_nether"
 		const levelNameTheEnd = "world_the_end"

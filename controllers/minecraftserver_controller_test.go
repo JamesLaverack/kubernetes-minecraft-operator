@@ -342,6 +342,46 @@ func TestMountedPVC(t *testing.T) {
 	var pod corev1.Pod
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
 	require.NoError(t, err)
+
+	// Find the volume on the Pod for this PVC
+	// Find the Volume for this config file
+	found := false
+	volumeName := ""
+	for _, v := range pod.Spec.Volumes {
+		if v.VolumeSource.PersistentVolumeClaim != nil &&
+			v.VolumeSource.PersistentVolumeClaim.ClaimName == pvc.Name {
+			// Oh hey found it.
+			found = true
+			volumeName = v.Name
+			break
+		}
+	}
+	assert.True(t, found, "Unable to find Pod volume for the world PVC")
+	// Find the three expected volume mounts from this volume
+	foundWorldVolumeMount := false
+	foundNetherVolumeMount := false
+	foundEndVolumeMount := false
+	container := pod.Spec.Containers[0]
+	for _, vm := range container.VolumeMounts {
+		if vm.Name == volumeName {
+			// Hey it's a mount of our Volume
+			switch vm.MountPath {
+			case "/data/world":
+				foundWorldVolumeMount = true
+				assert.Equal(t, "world", vm.SubPath)
+			case "/data/world_nether":
+				foundNetherVolumeMount = true
+				assert.Equal(t, "world_nether", vm.SubPath)
+			case "/data/world_the_end":
+				foundEndVolumeMount = true
+				assert.Equal(t, "world_the_end", vm.SubPath)
+			}
+			// No default, we tolerate other mounts of the world that aren't these three. We just don't care about them.
+		}
+	}
+	assert.True(t, foundWorldVolumeMount, "Unable to find world volume mount")
+	assert.True(t, foundNetherVolumeMount, "Unable to find world_nether volume mount")
+	assert.True(t, foundEndVolumeMount, "Unable to find world_the_end volume mount")
 }
 
 func TestBasicMinecraftServer(t *testing.T) {
