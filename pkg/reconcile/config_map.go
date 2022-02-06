@@ -63,6 +63,7 @@ func ReconcileConfigMap(ctx context.Context, logger logr.Logger, reader client.R
 	}
 	if !reflect.DeepEqual(actualConfigMap.Data, data) {
 		// Correct the data field
+		logger.V(0).WithValues("actual", actualConfigMap.Data, "expected", data).Info("Configmap data incorrect")
 		actualConfigMap.Data = data
 		return &actualConfigMap,
 			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
@@ -163,5 +164,10 @@ func configMapData(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]strin
 		config["prometheus_exporter_config.yaml"] = string(d)
 	}
 
+	// We need this for comparison later, because K8s will store an empty map as a nil (on the configmap data field
+	// anyway).
+	if len(config) == 0 {
+		return nil, nil
+	}
 	return config, nil
 }
