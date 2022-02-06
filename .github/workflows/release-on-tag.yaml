@@ -18,7 +18,7 @@ jobs:
         with:
           kustomize-version: v4.5.1
       - name: Set Release Image
-        run: cd config/default && kustomize edit set image ghcr.io/jameslaverack/minecraft-operator:${{ GITHUB_REF_NAME }}
+        run: cd config/default && kustomize edit set image ghcr.io/jameslaverack/minecraft-operator:${{ env.GITHUB_REF_NAME }}
       - name: Build Kubernetes YAML
         run: kustomize build config/default > operator.yaml
       - name: Release
