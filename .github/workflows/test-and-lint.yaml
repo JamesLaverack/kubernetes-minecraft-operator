@@ -70,5 +70,5 @@ jobs:
 
       - name: Test
         env:
-          ENVTEST_K8S_VERSION: ${{ matrix.kubernets }}
-        run: echo ${ENVTEST_K8S_VERSION} && make test
+          ENVTEST_K8S_VERSION: ${{ matrix.kubernetes }}
+        run: make test
