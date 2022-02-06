@@ -205,6 +205,57 @@ func TestOpsList(t *testing.T) {
 	assertEnv(t, container, "OVERRIDE_OPS", "true")
 }
 
+func TestAllowList(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	server.Spec.AllowList = []minecraftv1alpha1.Player{
+		{
+			// There is a real minecraft user with the name "testplayer", sorry!
+			Name: "testplayer",
+			UUID: "28a38b40-120c-4883-9122-61a8727ff578",
+		},
+	}
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var configMap corev1.ConfigMap
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &configMap)
+	opsFile := configMap.Data["whitelist.json"]
+	assert.NotEmpty(t, opsFile)
+
+	var parsed []struct {
+		UUID string `json:"uuid"`
+		Name string `json:"name"`
+	}
+	err = json.Unmarshal([]byte(opsFile), &parsed)
+	t.Log(parsed)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+	assert.Equal(t, "28a38b40-120c-4883-9122-61a8727ff578", parsed[0].UUID)
+	assert.Equal(t, "testplayer", parsed[0].Name)
+
+	var pod corev1.Pod
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+
+	assertConfigMapAttachedToPod(t, &pod, configMap.Name)
+
+	// Check the ENVVARs are set for the config file. As part of startup the itzg/docker-minecraft-server container
+	// will move files from /config to /data/config, so we should ensure that we're pointing at those.
+	container := pod.Spec.Containers[0]
+	assertEnv(t, container, "WHITELIST_FILE", "/data/config/whitelist.json")
+	assertEnv(t, container, "OVERRIDE_WHITELIST", "true")
+	assertEnv(t, container, "ENFORCE_WHITELIST", "TRUE")
+}
+
 func TestMountedPVC(t *testing.T) {
 	ctx := context.Background()
 	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
