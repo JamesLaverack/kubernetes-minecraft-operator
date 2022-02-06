@@ -1,0 +1,29 @@
+name: GitHub Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Kustomize
+        uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: v4.5.1
+      - name: Set Release Image
+        run: cd config/default && kustomize edit set image ghcr.io/jameslaverack/minecraft-operator:${{ GITHUB_REF_NAME }}
+      - name: Build Kubernetes YAML
+        run: kustomize build config/default > operator.yaml
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            LICENSE
+            operator.yaml
