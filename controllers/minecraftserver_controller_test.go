@@ -38,6 +38,8 @@ import (
 	//+kubebuilder:scaffold:imports
 )
 
+const reconcilerSyncDelay = time.Second * 2
+
 func setupTestingEnvironment(ctx context.Context, t *testing.T) (client.Client, func()) {
 	l := zap.New(zap.UseDevMode(true))
 	logf.SetLogger(l)
@@ -141,7 +143,7 @@ func TestOpsList(t *testing.T) {
 	require.NoError(t, err)
 
 	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(time.Second * 10)
+	time.Sleep(reconcilerSyncDelay)
 
 	var configMap corev1.ConfigMap
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
@@ -165,7 +167,36 @@ func TestOpsList(t *testing.T) {
 	assert.Equal(t, 4, parsed[0].Level)
 	assert.Equal(t, "false", parsed[0].BypassesPlayerLimit)
 
-	// TODO Assert that we're both mounting the configmap, and that the ENV for this file is set
+	var pod corev1.Pod
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+	// Find the Volume for this config file
+	found := false
+	volumeName := ""
+	for _, v := range pod.Spec.Volumes {
+		if v.VolumeSource.ConfigMap != nil &&
+			v.VolumeSource.ConfigMap.LocalObjectReference.Name == configMap.Name {
+			// Oh hey found it.
+			found = true
+			volumeName = v.Name
+			assert.Empty(t, v.VolumeSource.ConfigMap.Items)
+			assert.Nil(t, v.VolumeSource.ConfigMap.Optional)
+			break
+		}
+	}
+	assert.True(t, found, "Unable to find Volume on pod for this config map...")
+	// Now find the VolumeMount for this volume on the container, there should be exactly one.
+	container := pod.Spec.Containers[0]
+	assert.Contains(t, container.VolumeMounts, corev1.VolumeMount{
+		Name: volumeName,
+		// the /config directory is used by the itzg/docker-minecraft-server container to copy data from
+		MountPath: "/config",
+	})
+
+	// Check the ENVVARs are set for the config file. As part of startup the itzg/docker-minecraft-server container
+	// will move files from /config to /data/config, so we should ensure that we're pointing at those.
+	assertEnv(t, container, "OPS_FILE", "/data/config/ops.json")
+	assertEnv(t, container, "OVERRIDE_OPS", "true")
 }
 
 func TestMountedPVC(t *testing.T) {
@@ -202,7 +233,7 @@ func TestMountedPVC(t *testing.T) {
 	require.NoError(t, err)
 
 	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(time.Second * 10)
+	time.Sleep(reconcilerSyncDelay)
 
 	var pod corev1.Pod
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
@@ -219,7 +250,7 @@ func TestBasicMinecraftServer(t *testing.T) {
 	require.NoError(t, err)
 
 	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(time.Second * 10)
+	time.Sleep(reconcilerSyncDelay)
 
 	var pod corev1.Pod
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
@@ -238,7 +269,12 @@ func TestBasicMinecraftServer(t *testing.T) {
 	assertEnv(t, container, "VERSION", server.Spec.MinecraftVersion)
 	assertEnv(t, container, "TYPE", string(server.Spec.Type))
 	assertEnv(t, container, "MODE", "survival")
+	// Important for performance in longer-running containers. We presume the environment will capture logs in the
+	// normal way through container STDOUT/STDERR instead.
 	assertEnv(t, container, "ENABLE_ROLLING_LOGS", "true")
+	// Yes, the allowlist should be enforced even if it's empty. The default behaviour should *not* be to make a public
+	// server. That's way too dangerous as a default.
+	assertEnv(t, container, "ENFORCE_WHITELIST", "TRUE")
 
 	var service corev1.Service
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &service)
