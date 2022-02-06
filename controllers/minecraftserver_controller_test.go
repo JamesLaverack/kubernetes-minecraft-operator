@@ -603,3 +603,88 @@ func TestReconcilerFixesConfigMap(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equalf(t, opsFile, configMap.Data["ops.json"], "Reconciler did not repair modified config map")
 }
+
+func TestReconcilerFixesConfigMapOwnerReference(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	server.Spec.OpsList = []minecraftv1alpha1.Player{
+		{
+			// There is a real minecraft user with the name "testplayer", sorry!
+			Name: "testplayer",
+			UUID: "28a38b40-120c-4883-9122-61a8727ff578",
+		},
+	}
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var configMap corev1.ConfigMap
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &configMap)
+	configMap.OwnerReferences = []metav1.OwnerReference{}
+	err = k8sClient.Update(ctx, &configMap)
+	require.NoError(t, err)
+
+	time.Sleep(reconcilerSyncDelay)
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &configMap)
+}
+
+func TestReconcilerFixesPodOwnerReference(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var pod corev1.Pod
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &pod)
+	pod.OwnerReferences = []metav1.OwnerReference{}
+	err = k8sClient.Update(ctx, &pod)
+	require.NoError(t, err)
+
+	time.Sleep(reconcilerSyncDelay)
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &pod)
+}
+
+func TestReconcilerFixesServerOwnerReference(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var service corev1.Service
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &service)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &service)
+	service.OwnerReferences = []metav1.OwnerReference{}
+	err = k8sClient.Update(ctx, &service)
+	require.NoError(t, err)
+
+	time.Sleep(reconcilerSyncDelay)
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &service)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &service)
+}
