@@ -17,6 +17,11 @@ supported by itzg either.
 
 Use `make install` from the root of this directory with your cluster configured in `kubectl`.
 
+### Tags
+
+By default the `latest` tag is used, which is the latest published version. You can also use a specific published version
+using it's tag (e.g., `v0.2.3`) or `edge` if you want the latest commit on the main branch.
+
 ## Usage
 
 You can configure a server like this. The operator will create a `Pod` and `Service` to this specification. Note that
