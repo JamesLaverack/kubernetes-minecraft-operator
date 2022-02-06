@@ -524,15 +524,15 @@ func TestMaxPlayers(t *testing.T) {
 
 func TestEULA(t *testing.T) {
 	testCases := map[string]struct {
-		EULA string
+		EULA         string
 		flagExpected bool
 	}{
 		"EULA Accepted": {
-			EULA: string(minecraftv1alpha1.EULAAcceptanceAccepted),
+			EULA:         string(minecraftv1alpha1.EULAAcceptanceAccepted),
 			flagExpected: true,
 		},
 		"EULA Not Accepted": {
-			EULA: string(minecraftv1alpha1.EULAAcceptanceNotAccepted),
+			EULA:         string(minecraftv1alpha1.EULAAcceptanceNotAccepted),
 			flagExpected: false,
 		},
 	}
