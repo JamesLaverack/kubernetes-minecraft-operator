@@ -31,6 +31,9 @@ jobs:
       - name: Format & Vet
         run: make fmt vet && git diff-index --quiet HEAD --
 
+      - name: Generate & Manifests
+        run: make manifests generate && git diff-index --quiet HEAD --
+
   test:
     runs-on: ubuntu-latest
     strategy:
