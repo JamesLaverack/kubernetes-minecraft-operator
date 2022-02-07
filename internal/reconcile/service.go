@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -37,15 +36,6 @@ func ReconcileService(ctx context.Context, logger logr.Logger, reader client.Rea
 		return &actualService,
 			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
 				logger.Info("Setting owner reference on Service")
-				return ctrl.Result{}, writer.Update(ctx, &actualService)
-			},
-			nil
-	}
-
-	if reflect.DeepEqual(expectedService.Spec, actualService.Spec) {
-		return &actualService,
-			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
-				logger.Info("Service spec is incorrect, patching")
 				return ctrl.Result{}, writer.Update(ctx, &actualService)
 			},
 			nil
