@@ -7,7 +7,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v1.2.3
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.55.1
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.56.2
 	github.com/stretchr/testify v1.7.1
 	go.uber.org/zap v1.21.0
 	k8s.io/api v0.23.6
