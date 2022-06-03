@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        kubernetes: [1.21, 1.22, 1.23]
+        kubernetes: [1.22, 1.23]
     steps:
       - name: Install Go
         uses: actions/setup-go@v3
