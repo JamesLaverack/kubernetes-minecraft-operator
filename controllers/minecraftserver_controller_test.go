@@ -720,3 +720,33 @@ func TestReconcilerFixesServiceOwnerReference(t *testing.T) {
 	require.NoError(t, err)
 	assertOwnerReference(t, &server, &service)
 }
+
+func TestDynmapEnabled(t *testing.T) {
+	ctx := context.Background()
+	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
+	defer teardownFunc()
+
+	server := generateTestServer()
+	server.Spec.Dynmap = &minecraftv1alpha1.DynmapSpec{
+		Enabled: true,
+	}
+	err := k8sClient.Create(ctx, &server)
+	require.NoError(t, err)
+
+	// TODO Find a better way to know when the reconciler is done
+	time.Sleep(reconcilerSyncDelay)
+
+	var configMap corev1.ConfigMap
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
+	require.NoError(t, err)
+
+	var pod corev1.Pod
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
+	require.NoError(t, err)
+	assertOwnerReference(t, &server, &pod)
+	spec := pod.Spec
+	require.NotNil(t, spec)
+	container := pod.Spec.Containers[0]
+
+	assertEnv(t, container, "SPIGET_RESOURCES", "274")
+}

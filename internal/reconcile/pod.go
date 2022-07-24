@@ -292,7 +292,18 @@ func podForServer(server *v1alpha1.MinecraftServer, configMap *corev1.ConfigMap)
 			})
 	}
 
-	spigetResources := make([]string, 0)
+	var spigetResources []string
+
+	if server.Spec.Dynmap != nil && server.Spec.Dynmap.Enabled {
+		// This magic number is the Spigot plugin ID for Dynmap
+		// https://www.spigotmc.org/resources/dynmap%C2%AE.274/
+		spigetResources = append(spigetResources, "274")
+		container.Ports = append(container.Ports,
+			corev1.ContainerPort{
+				Name:          "http",
+				ContainerPort: 8123,
+			})
+	}
 
 	if server.Spec.Monitoring != nil && server.Spec.Monitoring.Enabled {
 		// This magic number is the Spigot plugin ID for the Prometheus Exporter plugin

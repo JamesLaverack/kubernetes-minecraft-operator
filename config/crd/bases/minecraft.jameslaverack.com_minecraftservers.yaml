@@ -53,6 +53,13 @@ spec:
                       type: string
                   type: object
                 type: array
+              dynmap:
+                properties:
+                  enabled:
+                    type: boolean
+                required:
+                - enabled
+                type: object
               eula:
                 enum:
                 - Accepted

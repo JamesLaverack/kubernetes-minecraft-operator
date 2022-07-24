@@ -64,6 +64,10 @@ type MonitoringSpec struct {
 	Enabled bool `json:"enabled"`
 }
 
+type DynmapSpec struct {
+	Enabled bool `json:"enabled"`
+}
+
 // MinecraftServerSpec defines the desired state of MinecraftServer
 type MinecraftServerSpec struct {
 	EULA              EULAAcceptance  `json:"eula"`
@@ -78,6 +82,7 @@ type MinecraftServerSpec struct {
 	ExternalServiceIP string          `json:"externalServiceIP"`
 	VanillaTweaks     *VanillaTweaks  `json:"vanillaTweaks,omitempty"`
 	Monitoring        *MonitoringSpec `json:"monitoring,omitempty"`
+	Dynmap            *DynmapSpec     `json:"dynmap,omitempty"`
 }
 
 // MinecraftServerStatus defines the observed state of MinecraftServer
