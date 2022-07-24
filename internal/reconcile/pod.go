@@ -303,6 +303,20 @@ func podForServer(server *v1alpha1.MinecraftServer, configMap *corev1.ConfigMap)
 				Name:          "http",
 				ContainerPort: 8123,
 			})
+		dynmapVolumeMountName := "dynmap"
+		pod.Spec.Volumes = append(pod.Spec.Volumes,
+			corev1.Volume{
+				Name: dynmapVolumeMountName,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: server.Spec.Dynmap.PersistentVolumeClaim,
+				},
+			})
+		container.VolumeMounts = append(container.VolumeMounts,
+			corev1.VolumeMount{
+				Name:      dynmapVolumeMountName,
+				MountPath: "/data/plugins/dynmap",
+			},
+		)
 	}
 
 	if server.Spec.Monitoring != nil && server.Spec.Monitoring.Enabled {

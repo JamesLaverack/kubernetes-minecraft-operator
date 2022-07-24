@@ -65,7 +65,8 @@ type MonitoringSpec struct {
 }
 
 type DynmapSpec struct {
-	Enabled bool `json:"enabled"`
+	Enabled               bool                                      `json:"enabled"`
+	PersistentVolumeClaim *corev1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`
 }
 
 // MinecraftServerSpec defines the desired state of MinecraftServer
