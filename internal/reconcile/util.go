@@ -3,7 +3,7 @@ package reconcile
 import (
 	"context"
 	"github.com/go-logr/logr"
-	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
+	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

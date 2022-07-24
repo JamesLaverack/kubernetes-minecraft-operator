@@ -31,7 +31,7 @@ spec:
         - /manager
         args:
         - --leader-elect
-        image: ghcr.io/jameslaverack/minecraft-operator:latest
+        image: ghcr.io/jameslaverack/kubernetes-minecraft-operator:latest
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

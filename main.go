@@ -32,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
-	"github.com/jameslaverack/minecraft-operator/controllers"
+	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
 

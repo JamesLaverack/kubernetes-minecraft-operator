@@ -5,7 +5,7 @@ import (
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
-	minecraftv1alpha1 "github.com/jameslaverack/minecraft-operator/api/v1alpha1"
+	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

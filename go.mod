@@ -1,4 +1,4 @@
-module github.com/jameslaverack/minecraft-operator
+module github.com/jameslaverack/kubernetes-minecraft-operator
 
 go 1.17
 
