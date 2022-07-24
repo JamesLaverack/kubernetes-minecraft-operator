@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path/filepath"
+	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
@@ -61,18 +62,38 @@ func ReconcilePod(ctx context.Context, logger logr.Logger, reader client.Reader,
 			nil
 	}
 
-	// TODO Detect and fix Pod changes
-	//if !reflect.DeepEqual(expectedPod.Spec, actualPod.Spec) {
-	//	return &actualPod,
-	//		func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
-	//			logger.Info("Pod spec is incorrect, deleting")
-	//			return ctrl.Result{}, writer.Delete(ctx, &actualPod)
-	//		},
-	//		nil
-	//}
+	// Check various bits of the pod spec to see if we need to delete it. We can't do a wholesale comparison on pod.Spec
+	// because of fields like nodeName. So we compare the things we care about. We also verify things like that our
+	// containers are a *subset* of the actual ones.
+	if !isSubset(expectedPod.Spec.Volumes, actualPod.Spec.Volumes) ||
+		!isSubset(expectedPod.Spec.Containers, actualPod.Spec.Containers) {
+		return &actualPod,
+			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
+				logger.Info("Pod spec is incorrect, deleting")
+				return ctrl.Result{}, writer.Delete(ctx, &actualPod)
+			},
+			nil
+	}
 
 	logger.V(0).Info("Pod all okay")
 	return &actualPod, nil, nil
+}
+
+// isSubset returns true if all elements in ax are present in bx, using reflect.DeepEqual to test for equality.
+func isSubset[T any](ax, bx []T) bool {
+	for _, a := range ax {
+		found := false
+		for _, b := range bx {
+			if reflect.DeepEqual(a, b) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 func podForServer(server *v1alpha1.MinecraftServer, configMap *corev1.ConfigMap) corev1.Pod {
