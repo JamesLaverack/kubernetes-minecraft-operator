@@ -80,7 +80,7 @@ func podForServer(server *v1alpha1.MinecraftServer, configMap *corev1.ConfigMap)
 	container := corev1.Container{
 		Name: "minecraft",
 		// TODO Configure version somehow
-		Image: "itzg/minecraft-server:2022.1.1",
+		Image: "itzg/minecraft-server:2022.10.1",
 		Env: []corev1.EnvVar{
 			{
 				Name:  "INIT_MEMORY",
