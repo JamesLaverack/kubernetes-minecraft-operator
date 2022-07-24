@@ -416,7 +416,7 @@ func TestBasicMinecraftServer(t *testing.T) {
 	require.Len(t, spec.Containers, 1)
 	container := spec.Containers[0]
 
-	assert.Equal(t, "itzg/minecraft-server:2022.1.1", container.Image)
+	assert.Equal(t, "itzg/minecraft-server:2022.10.0", container.Image)
 	assert.Equal(t, "minecraft", container.Name)
 
 	assertEnv(t, container, "VERSION", server.Spec.MinecraftVersion)
