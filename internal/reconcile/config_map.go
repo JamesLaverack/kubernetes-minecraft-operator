@@ -15,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
+	"strings"
 )
 
 func ReconcileConfigMap(ctx context.Context, logger logr.Logger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (*corev1.ConfigMap, ReconcileAction, error) {
@@ -114,11 +115,17 @@ func configMapData(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]strin
 	}
 
 	if spec.VanillaTweaks != nil {
-		version, err := semver.Parse(spec.MinecraftVersion)
-		if err != nil {
-			return nil, errors.Wrap(err, "Unable to parse semver version")
+		var minorVersion string
+		// This is janky
+		if strings.Count(spec.MinecraftVersion, ".") >= 2 {
+			version, err := semver.Parse(spec.MinecraftVersion)
+			if err != nil {
+				return nil, errors.Wrap(err, "Unable to parse semver version")
+			}
+			minorVersion = strconv.Itoa(int(version.Major)) + "." + strconv.Itoa(int(version.Minor))
+		} else {
+			minorVersion = spec.MinecraftVersion
 		}
-		minorVersion := strconv.Itoa(int(version.Major)) + "." + strconv.Itoa(int(version.Minor))
 		d, err := json.Marshal(struct {
 			Version string                          `json:"version"`
 			Packs   minecraftv1alpha1.VanillaTweaks `json:"packs"`
