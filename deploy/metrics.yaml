@@ -1,0 +1,30 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kubernetes-minecraft-operator-metrics-monitor
+  namespace: minecraft-system
+  labels:
+    operator: kubernetes-minecraft-operator
+spec:
+  endpoints:
+    - path: /metrics
+      port: metrics
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubernetes-minecraft-operator-metrics-service
+  namespace: minecraft-system
+  labels:
+    operator: kubernetes-minecraft-operator
+spec:
+  ports:
+    - name: metrics
+      port: 8443
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    operator: kubernetes-minecraft-operator

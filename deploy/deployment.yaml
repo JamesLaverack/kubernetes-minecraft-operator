@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-minecraft-operator
+  namespace: minecraft-system
+  label:
+    operator: kubernetes-minecraft-operator
+spec:
+  selector:
+    matchLabels:
+      operator: kubernetes-minecraft-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        operator: kubernetes-minecraft-operator
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - command:
+            - /operator
+          image: ghcr.io/jameslaverack/kubernetes-minecraft-operator:latest
+          name: operator
+          ports:
+            - name: metrics
+              port: 8443
+              protocol: TCP
+            - name: health
+              port: 8081
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+      serviceAccountName: kubernetes-minecraft-operator
+      terminationGracePeriodSeconds: 10
