@@ -1,5 +1,8 @@
 package v1alpha1
 
+//go:generate controller-gen crd output:crd:artifacts:config=../../crd
+//go:generate controller-gen object
+
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
