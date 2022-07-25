@@ -1,4 +1,4 @@
-package controllers
+package controller
 
 import (
 	"context"
@@ -29,7 +29,7 @@ func setupTestingEnvironment(ctx context.Context, t *testing.T) (client.WithWatc
 
 	// Setup testing environment
 	testEnv := &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "crd")},
 		ErrorIfCRDPathMissing: true,
 	}
 
@@ -39,8 +39,6 @@ func setupTestingEnvironment(ctx context.Context, t *testing.T) (client.WithWatc
 
 	err = minecraftv1alpha1.AddToScheme(scheme.Scheme)
 	require.NoError(t, err)
-
-	//+kubebuilder:scaffold:scheme
 
 	k8sClient, err := client.NewWithWatch(cfg, client.Options{Scheme: scheme.Scheme})
 	require.NoError(t, err)

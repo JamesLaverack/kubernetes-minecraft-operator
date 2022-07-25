@@ -69,7 +69,7 @@ func main() {
 	}
 	defer logger.Sync()
 
-	if err = (&controllers.controllers{
+	if err = (&controller.MinecraftServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
