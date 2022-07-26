@@ -21,8 +21,6 @@ import (
 	"time"
 )
 
-const reconcilerSyncDelay = time.Second * 2
-
 func setupTestingEnvironment(ctx context.Context, t *testing.T) (client.WithWatch, func()) {
 	l := zap.New(zap.UseDevMode(true))
 	logf.SetLogger(l)
@@ -141,6 +139,9 @@ func assertConfigMapAttachedToPod(t *testing.T, pod *corev1.Pod, cmName string) 
 	})
 }
 
+const timeout = time.Second * 10
+const tick = time.Second
+
 func TestOpsList(t *testing.T) {
 	ctx := context.Background()
 	k8sClient, teardownFunc := setupTestingEnvironment(ctx, t)
@@ -157,12 +158,12 @@ func TestOpsList(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var configMap corev1.ConfigMap
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &configMap)
 	opsFile := configMap.Data["ops.json"]
 	assert.NotEmpty(t, opsFile)
@@ -183,8 +184,11 @@ func TestOpsList(t *testing.T) {
 	assert.Equal(t, "false", parsed[0].BypassesPlayerLimit)
 
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 
 	assertConfigMapAttachedToPod(t, &pod, configMap.Name)
 
@@ -211,12 +215,12 @@ func TestAllowList(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var configMap corev1.ConfigMap
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &configMap)
 	opsFile := configMap.Data["whitelist.json"]
 	assert.NotEmpty(t, opsFile)
@@ -233,8 +237,11 @@ func TestAllowList(t *testing.T) {
 	assert.Equal(t, "testplayer", parsed[0].Name)
 
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 
 	assertConfigMapAttachedToPod(t, &pod, configMap.Name)
 
@@ -261,11 +268,13 @@ func TestVanillaTweaksDatapack(t *testing.T) {
 	require.NoError(t, err)
 
 	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
 
 	var configMap corev1.ConfigMap
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &configMap)
 	tweaksFile := configMap.Data["vanilla_tweaks.json"]
 	assert.NotEmpty(t, tweaksFile)
@@ -281,8 +290,11 @@ func TestVanillaTweaksDatapack(t *testing.T) {
 	assert.Equal(t, map[string][]string{"survival": []string{"multiplayer sleep"}}, parsed.Packs)
 
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 
 	assertConfigMapAttachedToPod(t, &pod, configMap.Name)
 
@@ -326,12 +338,12 @@ func TestMountedPVC(t *testing.T) {
 	err = k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 
 	// Find the volume on the Pod for this PVC
 	// Find the Volume for this config file
@@ -383,12 +395,12 @@ func TestBasicMinecraftServer(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &pod)
 	spec := pod.Spec
 	require.NotNil(t, spec)
@@ -411,8 +423,11 @@ func TestBasicMinecraftServer(t *testing.T) {
 	assertEnv(t, container, "ENFORCE_WHITELIST", "TRUE")
 
 	var service corev1.Service
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &service)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &service) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &service)
 
 	assert.Equal(t, corev1.ServiceTypeLoadBalancer, service.Spec.Type)
@@ -441,12 +456,12 @@ func TestMOTD(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &pod)
 	spec := pod.Spec
 	require.NotNil(t, spec)
@@ -465,12 +480,12 @@ func TestViewDistance(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &pod)
 	spec := pod.Spec
 	require.NotNil(t, spec)
@@ -489,12 +504,12 @@ func TestMaxPlayers(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &pod)
 	spec := pod.Spec
 	require.NotNil(t, spec)
@@ -530,12 +545,12 @@ func TestEULA(t *testing.T) {
 			err := k8sClient.Create(ctx, &server)
 			require.NoError(t, err)
 
-			// TODO Find a better way to know when the reconciler is done
-			time.Sleep(reconcilerSyncDelay)
-
 			var pod corev1.Pod
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-			require.NoError(t, err)
+			require.Eventually(t, func() bool {
+				return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+			},
+				timeout,
+				tick)
 			assertOwnerReference(t, &server, &pod)
 			spec := pod.Spec
 			require.NotNil(t, spec)
@@ -566,12 +581,12 @@ func TestReconcilerFixesConfigMap(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var configMap corev1.ConfigMap
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &configMap)
 	opsFile := configMap.Data["ops.json"]
 
@@ -579,7 +594,8 @@ func TestReconcilerFixesConfigMap(t *testing.T) {
 	err = k8sClient.Update(ctx, &configMap)
 	require.NoError(t, err)
 
-	time.Sleep(reconcilerSyncDelay)
+	// TODO remove this wait
+	time.Sleep(time.Second)
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
 	require.NoError(t, err)
 	assert.Equalf(t, opsFile, configMap.Data["ops.json"], "Reconciler did not repair modified config map")
@@ -601,18 +617,18 @@ func TestReconcilerFixesConfigMapOwnerReference(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var configMap corev1.ConfigMap
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &configMap)
 	configMap.OwnerReferences = []metav1.OwnerReference{}
 	err = k8sClient.Update(ctx, &configMap)
 	require.NoError(t, err)
 
-	time.Sleep(reconcilerSyncDelay)
+	time.Sleep(time.Second)
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
 	require.NoError(t, err)
 	assertOwnerReference(t, &server, &configMap)
@@ -627,18 +643,18 @@ func TestReconcilerFixesPodOwnerReference(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &pod)
 	pod.OwnerReferences = []metav1.OwnerReference{}
 	err = k8sClient.Update(ctx, &pod)
 	require.NoError(t, err)
 
-	time.Sleep(reconcilerSyncDelay)
+	time.Sleep(time.Second)
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
 	require.NoError(t, err)
 	assertOwnerReference(t, &server, &pod)
@@ -653,12 +669,12 @@ func TestReconcilerFixesPodLabels(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &pod)
 
 	// Add a new label *and* modify an old one
@@ -668,7 +684,7 @@ func TestReconcilerFixesPodLabels(t *testing.T) {
 	err = k8sClient.Update(ctx, &pod)
 	require.NoError(t, err)
 
-	time.Sleep(reconcilerSyncDelay)
+	time.Sleep(time.Second)
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
 	require.NoError(t, err)
 	// We expect that app will have been corrected, but the custom label to have remained
@@ -685,18 +701,18 @@ func TestReconcilerFixesServiceOwnerReference(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var service corev1.Service
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &service)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &service) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &service)
 	service.OwnerReferences = []metav1.OwnerReference{}
 	err = k8sClient.Update(ctx, &service)
 	require.NoError(t, err)
 
-	time.Sleep(reconcilerSyncDelay)
+	time.Sleep(time.Second)
 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &service)
 	require.NoError(t, err)
 	assertOwnerReference(t, &server, &service)
@@ -714,16 +730,19 @@ func TestDynmapEnabled(t *testing.T) {
 	err := k8sClient.Create(ctx, &server)
 	require.NoError(t, err)
 
-	// TODO Find a better way to know when the reconciler is done
-	time.Sleep(reconcilerSyncDelay)
-
 	var configMap corev1.ConfigMap
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &configMap) == nil
+	},
+		timeout,
+		tick)
 
 	var pod corev1.Pod
-	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod)
-	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return k8sClient.Get(ctx, client.ObjectKeyFromObject(&server), &pod) == nil
+	},
+		timeout,
+		tick)
 	assertOwnerReference(t, &server, &pod)
 	spec := pod.Spec
 	require.NotNil(t, spec)
