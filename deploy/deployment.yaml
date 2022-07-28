@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: kubernetes-minecraft-operator
   namespace: minecraft-system
-  label:
+  labels:
     operator: kubernetes-minecraft-operator
 spec:
   selector:
@@ -24,10 +24,10 @@ spec:
           name: operator
           ports:
             - name: metrics
-              port: 8443
+              containerPort: 8443
               protocol: TCP
             - name: health
-              port: 8081
+              containerPort: 8081
               protocol: TCP
           securityContext:
             allowPrivilegeEscalation: false
