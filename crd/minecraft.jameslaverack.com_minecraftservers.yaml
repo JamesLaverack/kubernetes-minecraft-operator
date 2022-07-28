@@ -84,18 +84,19 @@ spec:
                 - Accepted
                 - NotAccepted
                 type: string
-              externalServiceIP:
-                type: string
               maxPlayers:
                 type: integer
               minecraftVersion:
                 type: string
               monitoring:
                 properties:
-                  enabled:
-                    type: boolean
+                  type:
+                    enum:
+                    - Disabled
+                    - PrometheusServiceMonitor
+                    type: string
                 required:
-                - enabled
+                - type
                 type: object
               motd:
                 type: string
@@ -110,6 +111,20 @@ spec:
                       type: string
                   type: object
                 type: array
+              service:
+                description: ServiceSpec is very much like a corev1.ServiceSpec, but
+                  with only *some* fields.
+                properties:
+                  type:
+                    enum:
+                    - None
+                    - ClusterIP
+                    - NodePort
+                    - LoadBalancer
+                    type: string
+                required:
+                - type
+                type: object
               type:
                 enum:
                 - Paper
@@ -150,7 +165,45 @@ spec:
                 type: integer
               world:
                 properties:
-                  persistentVolumeClaim:
+                  nether:
+                    description: PersistentVolumeClaimVolumeSource references the
+                      user's PVC in the same namespace. This volume finds the bound
+                      PV and mounts that volume for the pod. A PersistentVolumeClaimVolumeSource
+                      is, essentially, a wrapper around another type of volume that
+                      is owned by someone else (the system).
+                    properties:
+                      claimName:
+                        description: 'claimName is the name of a PersistentVolumeClaim
+                          in the same namespace as the pod using this volume. More
+                          info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
+                        type: string
+                      readOnly:
+                        description: readOnly Will force the ReadOnly setting in VolumeMounts.
+                          Default false.
+                        type: boolean
+                    required:
+                    - claimName
+                    type: object
+                  overworld:
+                    description: PersistentVolumeClaimVolumeSource references the
+                      user's PVC in the same namespace. This volume finds the bound
+                      PV and mounts that volume for the pod. A PersistentVolumeClaimVolumeSource
+                      is, essentially, a wrapper around another type of volume that
+                      is owned by someone else (the system).
+                    properties:
+                      claimName:
+                        description: 'claimName is the name of a PersistentVolumeClaim
+                          in the same namespace as the pod using this volume. More
+                          info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims'
+                        type: string
+                      readOnly:
+                        description: readOnly Will force the ReadOnly setting in VolumeMounts.
+                          Default false.
+                        type: boolean
+                    required:
+                    - claimName
+                    type: object
+                  theEnd:
                     description: PersistentVolumeClaimVolumeSource references the
                       user's PVC in the same namespace. This volume finds the bound
                       PV and mounts that volume for the pod. A PersistentVolumeClaimVolumeSource
@@ -172,15 +225,24 @@ spec:
                 type: object
             required:
             - eula
-            - externalServiceIP
             - maxPlayers
             - minecraftVersion
             - motd
+            - service
             - type
             - viewDistance
             type: object
           status:
             description: MinecraftServerStatus defines the observed state of MinecraftServer
+            properties:
+              state:
+                enum:
+                - Pending
+                - Running
+                - Error
+                type: string
+            required:
+            - state
             type: object
         type: object
     served: true

@@ -2,6 +2,7 @@ package reconcile
 
 import (
 	"context"
+	"fmt"
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
@@ -10,26 +11,37 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"reflect"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 )
 
-func ReconcileConfigMap(ctx context.Context, logger logr.Logger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (*corev1.ConfigMap, ReconcileAction, error) {
+func configMapNameForServer(server *minecraftv1alpha1.MinecraftServer) string {
+	return server.Name
+}
+
+func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.MinecraftServer) (bool, error) {
+	log, err := logr.FromContext(ctx)
+	if err != nil {
+		return false, err
+	}
 	data, err := configMapData(server.Spec)
 	if err != nil {
-		return nil, nil, err
+		return false, err
 	}
 
-	expectedName := client.ObjectKeyFromObject(server)
+	expectedName := types.NamespacedName{
+		Name: configMapNameForServer(server),
+		Namespace: server.Namespace,
+	}
 
 	var actualConfigMap corev1.ConfigMap
-	err = reader.Get(ctx, expectedName, &actualConfigMap)
+	err = k8s.Get(ctx, expectedName, &actualConfigMap)
 	if apierrors.IsNotFound(err) {
-		// Simple, just make the map!
+		log.V(1).Info("ConfigMap does not exist, creating")
 		expectedConfigMap := corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            expectedName.Name,
@@ -38,49 +50,38 @@ func ReconcileConfigMap(ctx context.Context, logger logr.Logger, reader client.R
 			},
 			Data: data,
 		}
-		return &expectedConfigMap,
-			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
-				logger.Info("Creating config map with Minecraft configuration files")
-				return ctrl.Result{}, writer.Create(ctx, &expectedConfigMap)
-			},
-			nil
-
-	}
-	// Check for some other error, for example a permissions problem
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to get configmap from API server")
+		return true, k8s.Create(ctx, &expectedConfigMap)
+	} else if err != nil {
+		return false, errors.Wrap(err, "error performing GET on ConfigMap")
 	}
 
-	// ConfigMap already exists, so verify its integrity
 	if !hasCorrectOwnerReference(server, &actualConfigMap) {
-		// Set the right owner reference. Adding it to any existing ones.
+		log.V(1).Info("ConfigMap owner references incorrect, updating")
 		actualConfigMap.OwnerReferences = append(actualConfigMap.OwnerReferences, ownerReference(server))
-		return &actualConfigMap,
-			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
-				logger.Info("Setting owner reference on configmap")
-				return ctrl.Result{}, writer.Update(ctx, &actualConfigMap)
-			},
-			nil
+		return true, k8s.Update(ctx, &actualConfigMap)
 	}
-	if !reflect.DeepEqual(actualConfigMap.Data, data) {
-		// Correct the data field
-		logger.V(0).WithValues("actual", actualConfigMap.Data, "expected", data).Info("Configmap data incorrect")
-		actualConfigMap.Data = data
-		return &actualConfigMap,
-			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
-				logger.Info("Correcting data on configmap")
-				return ctrl.Result{}, writer.Update(ctx, &actualConfigMap)
-			},
-			nil
-	}
-	// We don't set or need any labels or annotations, so don't bother checking those
 
-	logger.V(1).Info("Configmap all okay")
-	return &actualConfigMap, nil, nil
+	if !reflect.DeepEqual(actualConfigMap.Data, data) {
+		log.V(1).Info("ConfigMap data incorrect, updating")
+		actualConfigMap.Data = data
+		return true, k8s.Update(ctx, &actualConfigMap)
+	}
+
+	log.V(2).Info("ConfigMap OK")
+	return false, nil
 }
 
 func configMapData(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]string, error) {
 	config := make(map[string]string)
+
+	config["server.properties"] = fmt.Sprintf(`
+motd=%s
+`,
+	spec.MOTD)
+
+	if spec.EULA == minecraftv1alpha1.EULAAcceptanceAccepted {
+		config["eula.txt"] = "true"
+	}
 
 	if len(spec.AllowList) > 0 {
 		// We can directly marshall the Player objects
@@ -139,7 +140,7 @@ func configMapData(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]strin
 		config["vanilla_tweaks.json"] = string(d)
 	}
 
-	if spec.Monitoring != nil && spec.Monitoring.Enabled {
+	if spec.Monitoring != nil && spec.Monitoring.Type == minecraftv1alpha1.MonitoringTypePrometheusServiceMonitor {
 		// prometheus-exporter plugin file
 		c := map[string]interface{}{
 			// This is the important bit, by default this plugin binds to localhost which isn't useful in K8s

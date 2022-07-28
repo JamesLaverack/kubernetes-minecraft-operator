@@ -7,42 +7,78 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func ReconcileService(ctx context.Context, logger logr.Logger, reader client.Reader, server *minecraftv1alpha1.MinecraftServer) (*corev1.Service, ReconcileAction, error) {
-	expectedService := serviceForServer(server)
+func Service(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.MinecraftServer) (bool, error) {
+	log, err := logr.FromContext(ctx)
+	if err != nil {
+		return false, err
+	}
 
 	var actualService corev1.Service
-	err := reader.Get(ctx, client.ObjectKeyFromObject(&expectedService), &actualService)
-	if apierrors.IsNotFound(err) {
-		// Pretty simple, just create it
-		return &expectedService,
-			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
-				logger.Info("Creating Minecraft Service")
-				return ctrl.Result{}, writer.Create(ctx, &expectedService)
-			},
-			nil
+	err = k8s.Get(ctx, client.ObjectKeyFromObject(server), &actualService)
+	if client.IgnoreNotFound(err) != nil {
+		return false, err
 	}
-	if err != nil {
-		return nil, nil, err
+
+	if server.Spec.Service == nil || server.Spec.Service.Type == minecraftv1alpha1.ServiceTypeNone {
+		// We should make sure we *don't* have a service.
+		if apierrors.IsNotFound(err) {
+			log.V(2).Info("Service OK")
+			return false, nil
+		}
+		log.V(1).Info("Service exists when it shouldn't, removing")
+		return true, k8s.Delete(ctx, &actualService)
+	}
+
+	expectedService := serviceForServer(server)
+
+	if apierrors.IsNotFound(err) {
+		log.V(1).Info("Service doesn't exist, creating")
+		return true, k8s.Create(ctx, &expectedService)
 	}
 
 	// Check service for integrity
 	if !hasCorrectOwnerReference(server, &actualService) {
-		// Set the right owner reference. Adding it to any existing ones.
+		log.V(1).Info("Service owner references incorrect, updating")
 		actualService.OwnerReferences = append(actualService.OwnerReferences, ownerReference(server))
-		return &actualService,
-			func(ctx context.Context, logger logr.Logger, writer client.Writer) (ctrl.Result, error) {
-				logger.Info("Setting owner reference on Service")
-				return ctrl.Result{}, writer.Update(ctx, &actualService)
-			},
-			nil
+		return true, k8s.Update(ctx, &actualService)
 	}
 
-	logger.V(0).Info("Service all okay")
-	return &actualService, nil, nil
+	for _, expectedPort := range expectedService.Spec.Ports {
+		foundPort := false
+		for i, actualPort := range actualService.Spec.Ports {
+			if expectedPort.Name == actualPort.Name {
+				foundPort = true
+				if expectedPort.Protocol != actualPort.Protocol {
+					log.V(1).Info("Service port protocol incorrect, updating")
+					actualService.Spec.Ports[i].Protocol = expectedPort.Protocol
+					return true, k8s.Update(ctx, &actualService)
+				}
+				if expectedPort.Port != actualPort.Port {
+					log.V(1).Info("Service port number incorrect, updating")
+					actualService.Spec.Ports[i].Port = expectedPort.Port
+					return true, k8s.Update(ctx, &actualService)
+				}
+				break
+			}
+		}
+		if !foundPort {
+			log.V(1).Info("Service port missing, adding")
+			actualService.Spec.Ports = append(actualService.Spec.Ports, expectedPort)
+			return true, k8s.Update(ctx, &actualService)
+		}
+	}
+
+	if actualService.Spec.Type != expectedService.Spec.Type {
+		log.V(1).Info("Service type incorrect, updating")
+		actualService.Spec.Type = expectedService.Spec.Type
+		return true, k8s.Update(ctx, &actualService)
+	}
+
+	log.V(2).Info("Service OK")
+	return false, nil
 }
 
 func serviceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service {
@@ -53,8 +89,7 @@ func serviceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service 
 			OwnerReferences: []metav1.OwnerReference{ownerReference(server)},
 		},
 		Spec: corev1.ServiceSpec{
-			// TODO Make configurable
-			Type:     corev1.ServiceTypeLoadBalancer,
+			Type:     corev1.ServiceType(server.Spec.Service.Type),
 			Selector: podLabels(server),
 			Ports: []corev1.ServicePort{
 				{
@@ -64,10 +99,6 @@ func serviceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service 
 				},
 			},
 		},
-	}
-
-	if server.Spec.ExternalServiceIP != "" {
-		service.Spec.ExternalIPs = []string{server.Spec.ExternalServiceIP}
 	}
 
 	return service

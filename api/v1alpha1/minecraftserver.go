@@ -31,7 +31,9 @@ type Player struct {
 }
 
 type WorldSpec struct {
-	PersistentVolumeClaim *corev1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`
+	Overworld *corev1.PersistentVolumeClaimVolumeSource `json:"overworld,omitempty"`
+	Nether    *corev1.PersistentVolumeClaimVolumeSource `json:"nether,omitempty"`
+	TheEnd    *corev1.PersistentVolumeClaimVolumeSource `json:"theEnd,omitempty"`
 }
 
 type VanillaTweaks struct {
@@ -44,36 +46,61 @@ type VanillaTweaks struct {
 	Experimental  []string `json:"experimental,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=Disabled;PrometheusServiceMonitor
+type MonitoringType string
+
 type MonitoringSpec struct {
-	Enabled bool `json:"enabled"`
+	Type MonitoringType `json:"type"`
 }
 
+const MonitoringTypeDisabled MonitoringType = "Disabled"
+const MonitoringTypePrometheusServiceMonitor MonitoringType = "PrometheusServiceMonitor"
+
 type DynmapSpec struct {
-	Enabled               bool                                      `json:"enabled"`
-	PersistentVolumeClaim *corev1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`
+	Enabled    bool                                      `json:"enabled"`
+	MapStorage *corev1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`
 }
 
 // MinecraftServerSpec defines the desired state of MinecraftServer
 type MinecraftServerSpec struct {
-	EULA              EULAAcceptance  `json:"eula"`
-	MinecraftVersion  string          `json:"minecraftVersion"`
-	Type              ServerType      `json:"type"`
-	AllowList         []Player        `json:"allowList,omitempty"`
-	OpsList           []Player        `json:"opsList,omitempty"`
-	World             *WorldSpec      `json:"world,omitempty"`
-	MOTD              string          `json:"motd"`
-	MaxPlayers        int             `json:"maxPlayers"`
-	ViewDistance      int             `json:"viewDistance"`
-	ExternalServiceIP string          `json:"externalServiceIP"`
-	VanillaTweaks     *VanillaTweaks  `json:"vanillaTweaks,omitempty"`
-	Monitoring        *MonitoringSpec `json:"monitoring,omitempty"`
-	Dynmap            *DynmapSpec     `json:"dynmap,omitempty"`
+	EULA             EULAAcceptance  `json:"eula"`
+	MinecraftVersion string          `json:"minecraftVersion"`
+	Type             ServerType      `json:"type"`
+	AllowList        []Player        `json:"allowList,omitempty"`
+	OpsList          []Player        `json:"opsList,omitempty"`
+	World            *WorldSpec      `json:"world,omitempty"`
+	MOTD             string          `json:"motd"`
+	MaxPlayers       int             `json:"maxPlayers"`
+	ViewDistance     int             `json:"viewDistance"`
+	Service          *ServiceSpec    `json:"service"`
+	VanillaTweaks    *VanillaTweaks  `json:"vanillaTweaks,omitempty"`
+	Monitoring       *MonitoringSpec `json:"monitoring,omitempty"`
+	Dynmap           *DynmapSpec     `json:"dynmap,omitempty"`
 }
+
+// +kubebuilder:validation:Enum=None;ClusterIP;NodePort;LoadBalancer
+type ServiceType string
+
+const ServiceTypeNone ServiceType = "None"
+const ServiceTypeClusterIP ServiceType = "ClusterIP"
+const ServiceTypeNodePort ServiceType = "NodePort"
+const ServiceTypeLoadBalancer ServiceType = "LoadBalancer"
+
+// ServiceSpec is very much like a corev1.ServiceSpec, but with only *some* fields.
+type ServiceSpec struct {
+	Type ServiceType `json:"type"`
+}
+
+// +kubebuilder:validation:Enum=Pending;Running;Error
+type State string
+
+const StatePending State = "Pending"
+const StateRunning State = "Running"
+const StateError State = "Error"
 
 // MinecraftServerStatus defines the observed state of MinecraftServer
 type MinecraftServerStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	State State `json:"state"`
 }
 
 //+kubebuilder:object:root=true

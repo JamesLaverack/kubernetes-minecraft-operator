@@ -10,10 +10,6 @@ or graphical admin interfaces are required.
 🚧 This is **alpha-grade** software. No guarantee is provided (see the [license](LICENSE)), and users are
 responsible for the security and data-integrity of their own servers. The API surface is subject to change without notice.
 
-🧱 All the heavy-lifting is done by the excellent [itzg/docker-minecraft-server](https://github.com/itzg/docker-minecraft-server).
-That container image is what is actually deployed into the cluster as a `Pod`. This project isn't endorsed or
-supported by itzg either.
-
 ## Installing
 
 You can install the latest version of the operator by running this command with your cluster configured in `kubectl`.
