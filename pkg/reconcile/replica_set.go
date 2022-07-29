@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path/filepath"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -39,12 +38,6 @@ func ReplicaSet(ctx context.Context, k8s client.Client, server *minecraftv1alpha
 		return true, k8s.Update(ctx, &actualRS)
 	}
 
-	if !reflect.DeepEqual(expectedPS.Spec, actualRS.Spec) {
-		actualRS.Spec = expectedPS.Spec
-		log.V(1).Info("ReplicaSet spec incorrect, updating")
-		return true, k8s.Update(ctx, &actualRS)
-	}
-
 	log.V(2).Info("ReplicaSet OK")
 	return false, nil
 }
@@ -53,6 +46,7 @@ func downloadContainer(url, sha256, filename, volumeMountName string) corev1.Con
 	return corev1.Container{
 		Name:  "download",
 		Image: "ghcr.io/jameslaverack/download:edge",
+		ImagePullPolicy: corev1.PullAlways,
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      volumeMountName,
@@ -106,6 +100,7 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 			{
 				Name:          "minecraft",
 				ContainerPort: 25565,
+				Protocol:      corev1.ProtocolTCP,
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{
@@ -122,6 +117,7 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 		},
 	}
 
+	var replicas int32 = 1
 	rs := appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            server.Name,
@@ -129,6 +125,7 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 			OwnerReferences: []metav1.OwnerReference{ownerReference(server)},
 		},
 		Spec: appsv1.ReplicaSetSpec{
+			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podLabels(server),
 			},
