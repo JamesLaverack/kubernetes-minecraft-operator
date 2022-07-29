@@ -18,10 +18,8 @@ spec:
       securityContext:
         runAsNonRoot: true
       containers:
-        - command:
-            - /operator
+        - name: operator
           image: ghcr.io/jameslaverack/kubernetes-minecraft-operator:latest
-          name: operator
           ports:
             - name: metrics
               containerPort: 8443

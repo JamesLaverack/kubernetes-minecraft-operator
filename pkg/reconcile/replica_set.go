@@ -161,9 +161,9 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 	}
 
 	if server.Spec.World != nil {
-		const overworldMountName = "overworld"
-		const netherMountName = "nether"
-		const theEndMountName = "theEnd"
+		const overworldMountName = "world-overworld"
+		const netherMountName = "world-nether"
+		const theEndMountName = "world-the-end"
 
 		rs.Spec.Template.Spec.Volumes = append(rs.Spec.Template.Spec.Volumes,
 			corev1.Volume{

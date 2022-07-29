@@ -146,4 +146,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: kubernetes-minecraft-operator
-    namespace: system
+    namespace: minecraft-system
