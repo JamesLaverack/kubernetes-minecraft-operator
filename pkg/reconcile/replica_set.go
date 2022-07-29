@@ -85,6 +85,7 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 		Name: "minecraft",
 		// TODO Configure Java Version
 		Image: "eclipse-temurin:17",
+		Args: []string{"java", "-jar", "/usr/local/minecraft/paper.jar"},
 		// TODO Make resources configurable
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
