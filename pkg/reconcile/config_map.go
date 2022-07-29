@@ -71,16 +71,26 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 	return false, nil
 }
 
+func propertiesFile(keysAndValues ...string) string {
+	sb := strings.Builder{}
+	for i:=0;i+1<len(keysAndValues);i+=2 {
+		sb.WriteString(fmt.Sprintf("%s=%s\n", keysAndValues[i], keysAndValues[i+1]))
+	}
+	return sb.String()
+}
+
 func configMapData(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]string, error) {
 	config := make(map[string]string)
 
-	config["server.properties"] = fmt.Sprintf(`
-motd=%s
-`,
-	spec.MOTD)
+	config["server.properties"] = propertiesFile(
+		"motd", spec.MOTD)
 
+	// We always write a eula.txt file, but we *only* put "true" in it if the MinecraftServer object has had the EULA
+	// explicitly accepted.
 	if spec.EULA == minecraftv1alpha1.EULAAcceptanceAccepted {
-		config["eula.txt"] = "true"
+		config["eula.txt"] = "eula=true"
+	} else {
+		config["eula.txt"] = "eula=false"
 	}
 
 	if len(spec.AllowList) > 0 {

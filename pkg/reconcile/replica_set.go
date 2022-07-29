@@ -11,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -42,10 +43,34 @@ func ReplicaSet(ctx context.Context, k8s client.Client, server *minecraftv1alpha
 	return false, nil
 }
 
+// Spigot really, *really* wants to be able to write to its config files. So we copy them over from the configmap to
+// the Spigot server's working directory in /run/minecraft to let it run all over them.
+// TODO Handle live changes to these files, maybe with some kind of sidecar?
+func copyEulaContainer(configVolumeMountName, paperWorkingDirVolumeName string) corev1.Container {
+	return corev1.Container{
+		Name: "copy-config",
+		Image: "busybox",
+		// We use sh here to get file globbing with the *.
+		Args: []string{"sh", "-c", "cp /etc/minecraft/* /run/minecraft/"},
+		VolumeMounts: []corev1.VolumeMount{
+			// This will mount config files, like server.properties, under /etc/minecraft/server.properties
+			{
+				Name:      configVolumeMountName,
+				MountPath: "/etc/minecraft",
+			},
+			// This gives paper a writeable runtime directory, this is used as the working directory.
+			{
+				Name:      paperWorkingDirVolumeName,
+				MountPath: "/run/minecraft",
+			},
+		},
+	}
+}
+
 func downloadContainer(url, sha256, filename, volumeMountName string) corev1.Container {
 	return corev1.Container{
-		Name:  "download",
-		Image: "ghcr.io/jameslaverack/download:edge",
+		Name:            "download",
+		Image:           "ghcr.io/jameslaverack/download:edge",
 		ImagePullPolicy: corev1.PullAlways,
 		VolumeMounts: []corev1.VolumeMount{
 			{
@@ -72,20 +97,56 @@ func downloadContainer(url, sha256, filename, volumeMountName string) corev1.Con
 
 func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 	const paperJarVolumeName = "paper-jar"
+	const paperWorkingDirVolumeName = "paper-workingdir"
+	const configVolumeMountName = "config"
+	const overworldMountName = "world-overworld"
+	const netherMountName = "world-nether"
+	const theEndMountName = "world-the-end"
 
 	// TODO Don't hardcode this
 	dlContainer := downloadContainer(
-		"https://api.papermc.io/v2/projects/paper/versions/1.19/builds/81/downloads/paper-1.19-81.jar",
-		"0d39cacc51a77b2b071e1ce862fcbf0b4a4bd668cc7e8b313598d84fa09fabac",
+		"https://api.papermc.io/v2/projects/paper/versions/1.19.1/builds/88/downloads/paper-1.19.1-88.jar",
+		"bfe71785667089aa316f64cf007ea4ce59c6616d966b926baf452f51faf11844",
 		"paper.jar",
 		paperJarVolumeName)
 
-	const configVolumeMountName = "config"
+	copyEULAContainer := copyEulaContainer(configVolumeMountName, paperWorkingDirVolumeName)
+
 	mainJavaContainer := corev1.Container{
 		Name: "minecraft",
 		// TODO Configure Java Version
 		Image: "eclipse-temurin:17",
-		Args: []string{"java", "-jar", "/usr/local/minecraft/paper.jar", "--nogui"},
+		Args: []string{
+			"java",
+			///////////////////////////////
+			// Flags here are flags to Java
+			///////////////////////////////
+			"-jar",
+			"/usr/local/minecraft/paper.jar",
+			////////////////////////////////////////////////////////////
+			// Flags after this point are flags to PaperMC, and not Java
+			////////////////////////////////////////////////////////////
+			// Set the world directory to be /var/minecraft
+			"--world-container=/var/minecraft",
+			// Set the plugin directory to be /usr/local/minecraft/plugins
+			"--plugins=/usr/local/minecraft/plugins",
+			// Disable the on-disk logging, we'll use STDOUT logging always
+			"--log-append=false",
+			// Disable the GUI, no need in a container
+			"--nogui"},
+		// Paper expects to be able to write all kinds of stuff to it's working directory, so we give it a dedicated
+		// scratch dir for it's use under /run/minecraft.
+		WorkingDir: "/run/minecraft",
+		// We use a security context to clamp down what our Pod can do. In particular we ensure it can't execute as
+		// as root.
+		SecurityContext: &corev1.SecurityContext{
+			Privileged:               pointer.Bool(false),
+			RunAsUser:                pointer.Int64(1000),
+			RunAsGroup:               pointer.Int64(1000),
+			RunAsNonRoot:             pointer.Bool(true),
+			ReadOnlyRootFilesystem:   pointer.Bool(true),
+			AllowPrivilegeEscalation: pointer.Bool(false),
+		},
 		// TODO Make resources configurable
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
@@ -110,10 +171,28 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 				Name:      configVolumeMountName,
 				MountPath: "/etc/minecraft",
 			},
+			// This gives paper a writeable runtime directory, this is used as the working directory.
+			{
+				Name:      paperWorkingDirVolumeName,
+				MountPath: "/run/minecraft",
+			},
 			// This will mount the JAR to /usr/local/minecraft/paper.jar
 			{
 				Name:      paperJarVolumeName,
 				MountPath: "/usr/local/minecraft",
+			},
+			// Mount the various world directories under /var/minecraft
+			{
+				Name:      overworldMountName,
+				MountPath: "/var/minecraft/world",
+			},
+			{
+				Name:      netherMountName,
+				MountPath: "/var/minecraft/world_nether",
+			},
+			{
+				Name:      theEndMountName,
+				MountPath: "/var/minecraft/world_the_end",
 			},
 		},
 	}
@@ -152,6 +231,12 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 								EmptyDir: &corev1.EmptyDirVolumeSource{},
 							},
 						},
+						{
+							Name: paperWorkingDirVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
 					},
 				},
 			},
@@ -159,10 +244,7 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 	}
 
 	if server.Spec.World != nil {
-		const overworldMountName = "world-overworld"
-		const netherMountName = "world-nether"
-		const theEndMountName = "world-the-end"
-
+		// Persistent world, so mount so PVCs
 		rs.Spec.Template.Spec.Volumes = append(rs.Spec.Template.Spec.Volumes,
 			corev1.Volume{
 				Name: overworldMountName,
@@ -182,24 +264,30 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 					PersistentVolumeClaim: server.Spec.World.TheEnd,
 				},
 			})
-
-		mainJavaContainer.VolumeMounts = append(mainJavaContainer.VolumeMounts,
-			corev1.VolumeMount{
-				Name:      overworldMountName,
-				MountPath: "/var/minecraft/world",
+	} else {
+		// No world to persist, so mount EmptyDir volumes.
+		rs.Spec.Template.Spec.Volumes = append(rs.Spec.Template.Spec.Volumes,
+			corev1.Volume{
+				Name: overworldMountName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
 			},
-			corev1.VolumeMount{
-				Name:      netherMountName,
-				MountPath: "/var/minecraft/world_nether",
+			corev1.Volume{
+				Name: netherMountName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
 			},
-			corev1.VolumeMount{
-				Name:      theEndMountName,
-				MountPath: "/var/minecraft/world_the_end",
-			},
-		)
+			corev1.Volume{
+				Name: theEndMountName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			})
 	}
 
-	rs.Spec.Template.Spec.InitContainers = []corev1.Container{dlContainer}
+	rs.Spec.Template.Spec.InitContainers = []corev1.Container{dlContainer, copyEULAContainer}
 	rs.Spec.Template.Spec.Containers = append(rs.Spec.Template.Spec.Containers, mainJavaContainer)
 
 	return rs
