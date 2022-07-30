@@ -3,7 +3,6 @@ package reconcile
 import (
 	"context"
 	"fmt"
-	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
@@ -15,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strconv"
 	"strings"
 )
 
@@ -123,31 +121,6 @@ func configMapData(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]strin
 			return nil, err
 		}
 		config["ops.json"] = string(d)
-	}
-
-	if spec.VanillaTweaks != nil {
-		var minorVersion string
-		// This is janky
-		if strings.Count(spec.MinecraftVersion, ".") >= 2 {
-			version, err := semver.Parse(spec.MinecraftVersion)
-			if err != nil {
-				return nil, errors.Wrap(err, "Unable to parse semver version")
-			}
-			minorVersion = strconv.Itoa(int(version.Major)) + "." + strconv.Itoa(int(version.Minor))
-		} else {
-			minorVersion = spec.MinecraftVersion
-		}
-		d, err := json.Marshal(struct {
-			Version string                          `json:"version"`
-			Packs   minecraftv1alpha1.VanillaTweaks `json:"packs"`
-		}{
-			Version: minorVersion,
-			Packs:   *spec.VanillaTweaks,
-		})
-		if err != nil {
-			return nil, err
-		}
-		config["vanilla_tweaks.json"] = string(d)
 	}
 
 	if spec.Monitoring != nil && spec.Monitoring.Type == minecraftv1alpha1.MonitoringTypePrometheusServiceMonitor {

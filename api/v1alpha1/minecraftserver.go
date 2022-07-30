@@ -37,13 +37,12 @@ type WorldSpec struct {
 }
 
 type VanillaTweaks struct {
-	Survival      []string `json:"survival,omitempty"`
-	Items         []string `json:"items,omitempty"`
-	Mobs          []string `json:"mobs,omitempty"`
-	Teleportation []string `json:"teleportation,omitempty"`
-	Utilities     []string `json:"utilities,omitempty"`
-	Hermitcraft   []string `json:"hermitcraft,omitempty"`
-	Experimental  []string `json:"experimental,omitempty"`
+	Datapacks []VanillaTweaksDatapack `json:"datapacks,omitempty"`
+}
+
+type VanillaTweaksDatapack struct {
+	Name     string `json:"name"`
+	Category string `json:"category"`
 }
 
 // +kubebuilder:validation:Enum=Disabled;PrometheusServiceMonitor

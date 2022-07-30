@@ -5,6 +5,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/bibliothek"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/vanillatweaks"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -21,7 +23,10 @@ func ReplicaSet(ctx context.Context, k8s client.Client, server *minecraftv1alpha
 	if err != nil {
 		return false, err
 	}
-	expectedPS := rsForServer(server)
+	expectedPS, err := rsForServer(ctx, server)
+	if err != nil {
+		return false, err
+	}
 
 	var actualRS appsv1.ReplicaSet
 	err = k8s.Get(ctx, client.ObjectKeyFromObject(&expectedPS), &actualRS)
@@ -46,9 +51,9 @@ func ReplicaSet(ctx context.Context, k8s client.Client, server *minecraftv1alpha
 // Spigot really, *really* wants to be able to write to its config files. So we copy them over from the configmap to
 // the Spigot server's working directory in /run/minecraft to let it run all over them.
 // TODO Handle live changes to these files, maybe with some kind of sidecar?
-func copyEulaContainer(configVolumeMountName, paperWorkingDirVolumeName string) corev1.Container {
+func copyConfigContainer(configVolumeMountName, paperWorkingDirVolumeName string) corev1.Container {
 	return corev1.Container{
-		Name: "copy-config",
+		Name:  "copy-config",
 		Image: "busybox",
 		// We use sh here to get file globbing with the *.
 		Args: []string{"sh", "-c", "cp /etc/minecraft/* /run/minecraft/"},
@@ -65,6 +70,25 @@ func copyEulaContainer(configVolumeMountName, paperWorkingDirVolumeName string) 
 			},
 		},
 	}
+}
+
+func vanillaTweaksDatapackContainer(ctx context.Context, datapacksVolumeMountName string, version string, tweaks *minecraftv1alpha1.VanillaTweaks) (corev1.Container, error) {
+	url, err := vanillatweaks.GetDatapackDownloadURL(ctx, version, tweaks.Datapacks)
+	if err != nil {
+		return corev1.Container{}, err
+	}
+
+	return corev1.Container{
+		Name:  "install-vanillatweaks",
+		Image: "busybox",
+		Args:  []string{"sh", "-c", "cd /var/minecraft/world/datapacks && wget -O vt.zip '" + url + "' && unzip vt.zip && rm vt.zip"},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      datapacksVolumeMountName,
+				MountPath: "/var/minecraft/world/datapacks",
+			},
+		},
+	}, nil
 }
 
 func downloadContainer(url, sha256, filename, volumeMountName string) corev1.Container {
@@ -95,22 +119,28 @@ func downloadContainer(url, sha256, filename, volumeMountName string) corev1.Con
 	}
 }
 
-func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
+func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.ReplicaSet, error) {
 	const paperJarVolumeName = "paper-jar"
 	const paperWorkingDirVolumeName = "paper-workingdir"
 	const configVolumeMountName = "config"
 	const overworldMountName = "world-overworld"
 	const netherMountName = "world-nether"
 	const theEndMountName = "world-the-end"
+	const dataPacksMountName = "data-packs"
 
-	// TODO Don't hardcode this
-	dlContainer := downloadContainer(
-		"https://api.papermc.io/v2/projects/paper/versions/1.19.1/builds/88/downloads/paper-1.19.1-88.jar",
-		"bfe71785667089aa316f64cf007ea4ce59c6616d966b926baf452f51faf11844",
-		"paper.jar",
-		paperJarVolumeName)
+	latestBuild, err := bibliothek.LatestBuildForVersion(server.Spec.MinecraftVersion)
+	if err != nil {
+		return appsv1.ReplicaSet{}, err
+	}
+	url, sha256, err := bibliothek.GetDownloadURLAndSHA256(server.Spec.MinecraftVersion, latestBuild)
+	if err != nil {
+		return appsv1.ReplicaSet{}, err
+	}
 
-	copyEULAContainer := copyEulaContainer(configVolumeMountName, paperWorkingDirVolumeName)
+	paperDownloadContainer := downloadContainer(url, sha256, "paper.jar", paperJarVolumeName)
+	copyConfigContainer := copyConfigContainer(configVolumeMountName, paperWorkingDirVolumeName)
+
+	initContainers := []corev1.Container{paperDownloadContainer, copyConfigContainer}
 
 	mainJavaContainer := corev1.Container{
 		Name: "minecraft",
@@ -194,6 +224,11 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 				Name:      theEndMountName,
 				MountPath: "/var/minecraft/world_the_end",
 			},
+			// Mount the datapacks at /var/minecraft/world/datapacks
+			{
+				Name:      dataPacksMountName,
+				MountPath: "/var/minecraft/world/datapacks",
+			},
 		},
 	}
 
@@ -233,6 +268,12 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 						},
 						{
 							Name: paperWorkingDirVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: dataPacksMountName,
 							VolumeSource: corev1.VolumeSource{
 								EmptyDir: &corev1.EmptyDirVolumeSource{},
 							},
@@ -287,8 +328,16 @@ func rsForServer(server *v1alpha1.MinecraftServer) appsv1.ReplicaSet {
 			})
 	}
 
-	rs.Spec.Template.Spec.InitContainers = []corev1.Container{dlContainer, copyEULAContainer}
+	if server.Spec.VanillaTweaks != nil {
+		vtDownloadContainer, err := vanillaTweaksDatapackContainer(ctx, dataPacksMountName, server.Spec.MinecraftVersion, server.Spec.VanillaTweaks)
+		if err != nil {
+			return appsv1.ReplicaSet{}, err
+		}
+		initContainers = append(initContainers, vtDownloadContainer)
+	}
+
+	rs.Spec.Template.Spec.InitContainers = initContainers
 	rs.Spec.Template.Spec.Containers = append(rs.Spec.Template.Spec.Containers, mainJavaContainer)
 
-	return rs
+	return rs, nil
 }

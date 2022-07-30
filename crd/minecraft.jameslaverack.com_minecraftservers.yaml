@@ -132,33 +132,17 @@ spec:
                 type: string
               vanillaTweaks:
                 properties:
-                  experimental:
+                  datapacks:
                     items:
-                      type: string
-                    type: array
-                  hermitcraft:
-                    items:
-                      type: string
-                    type: array
-                  items:
-                    items:
-                      type: string
-                    type: array
-                  mobs:
-                    items:
-                      type: string
-                    type: array
-                  survival:
-                    items:
-                      type: string
-                    type: array
-                  teleportation:
-                    items:
-                      type: string
-                    type: array
-                  utilities:
-                    items:
-                      type: string
+                      properties:
+                        category:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - category
+                      - name
+                      type: object
                     type: array
                 type: object
               viewDistance:
