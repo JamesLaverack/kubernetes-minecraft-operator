@@ -78,6 +78,7 @@ func DynmapService(ctx context.Context, k8s client.Client, server *minecraftv1al
 }
 
 func dynmapServiceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service {
+	prefer := corev1.IPFamilyPolicyPreferDualStack
 	service := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            server.Name + "-dynmap",
@@ -85,8 +86,9 @@ func dynmapServiceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Se
 			OwnerReferences: []metav1.OwnerReference{ownerReference(server)},
 		},
 		Spec: corev1.ServiceSpec{
-			Type:     corev1.ServiceTypeClusterIP,
-			Selector: podLabels(server),
+			IPFamilyPolicy: &prefer,
+			Type:           corev1.ServiceTypeClusterIP,
+			Selector:       podLabels(server),
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "dynmap",
