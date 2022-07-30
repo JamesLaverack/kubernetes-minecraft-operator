@@ -72,19 +72,19 @@ func copyConfigContainer(configVolumeMountName, paperWorkingDirVolumeName string
 	}
 }
 
-func copyDynmapConfigContainer(dynmapConfigVolumeMountName, pluginVolumeName string) corev1.Container {
+func copyDynmapConfigContainer(dynmapConfigVolumeMountName, dynmapDataVolumeName string) corev1.Container {
 	return corev1.Container{
 		Name:  "copy-dynmap-config",
 		Image: "busybox",
-		Args:  []string{"sh", "-c", "mkdir -p /usr/local/minecraft/plugins/dynmap && cp /etc/dynmap/* /usr/local/minecraft/plugins/dynmap"},
+		Args:  []string{"sh", "-c", "cp /etc/dynmap/* /usr/local/minecraft/plugins/dynmap"},
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      dynmapConfigVolumeMountName,
 				MountPath: "/etc/dynmap",
 			},
 			{
-				Name:      pluginVolumeName,
-				MountPath: "/usr/local/minecraft/plugins",
+				Name:      dynmapDataVolumeName,
+				MountPath: "/usr/local/minecraft/plugins/dynmap",
 			},
 		},
 	}
@@ -401,10 +401,17 @@ func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.
 				},
 			})
 		// Use an init container to move the mounted dynmap config into the runtime plugins dir
-		initContainers = append(initContainers, copyDynmapConfigContainer(dynmapConfigMountName, pluginsMountName))
+		const dynmapDataMountName = "dynmap-data"
+		initContainers = append(initContainers, copyDynmapConfigContainer(dynmapConfigMountName, dynmapDataMountName))
+
+		mainJavaContainer.VolumeMounts = append(
+			mainJavaContainer.VolumeMounts,
+			corev1.VolumeMount{
+				Name:      dynmapDataMountName,
+				MountPath: "/usr/local/minecraft/plugins/dynmap/",
+			})
 
 		if server.Spec.Dynmap.MapStorage != nil {
-			const dynmapDataMountName = "dynmap-data"
 			rs.Spec.Template.Spec.Volumes = append(rs.Spec.Template.Spec.Volumes,
 				corev1.Volume{
 					Name: dynmapDataMountName,
@@ -412,11 +419,13 @@ func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.
 						PersistentVolumeClaim: server.Spec.Dynmap.MapStorage,
 					},
 				})
-			mainJavaContainer.VolumeMounts = append(
-				mainJavaContainer.VolumeMounts,
-				corev1.VolumeMount{
-					Name:      dynmapDataMountName,
-					MountPath: "/usr/local/minecraft/plugins/dynmap/web/tiles",
+		} else {
+			rs.Spec.Template.Spec.Volumes = append(rs.Spec.Template.Spec.Volumes,
+				corev1.Volume{
+					Name: dynmapDataMountName,
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
 				})
 		}
 	}
