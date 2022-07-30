@@ -115,6 +115,11 @@ spec:
                 description: ServiceSpec is very much like a corev1.ServiceSpec, but
                   with only *some* fields.
                 properties:
+                  minecraftNodePort:
+                    description: Port to bind Minecraft to if using a NodePort or
+                      LoadBalancer service
+                    format: int32
+                    type: integer
                   type:
                     enum:
                     - None

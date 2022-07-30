@@ -88,6 +88,8 @@ const ServiceTypeLoadBalancer ServiceType = "LoadBalancer"
 // ServiceSpec is very much like a corev1.ServiceSpec, but with only *some* fields.
 type ServiceSpec struct {
 	Type ServiceType `json:"type"`
+	// Port to bind Minecraft to if using a NodePort or LoadBalancer service
+	MinecraftNodePort *int32 `json:"minecraftNodePort,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=Pending;Running;Error

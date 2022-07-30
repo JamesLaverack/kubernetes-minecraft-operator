@@ -61,6 +61,11 @@ func Service(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.M
 					actualService.Spec.Ports[i].Port = expectedPort.Port
 					return true, k8s.Update(ctx, &actualService)
 				}
+				if expectedPort.NodePort != 0 && expectedPort.NodePort != actualPort.NodePort {
+					log.V(1).Info("Service node port number incorrect, updating")
+					actualService.Spec.Ports[i].NodePort = expectedPort.NodePort
+					return true, k8s.Update(ctx, &actualService)
+				}
 				break
 			}
 		}
@@ -99,6 +104,10 @@ func serviceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service 
 				},
 			},
 		},
+	}
+
+	if server.Spec.Service.MinecraftNodePort != nil && *server.Spec.Service.MinecraftNodePort > 0 {
+		service.Spec.Ports[0].NodePort = *server.Spec.Service.MinecraftNodePort
 	}
 
 	return service
