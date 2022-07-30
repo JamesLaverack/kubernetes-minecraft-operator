@@ -72,6 +72,24 @@ func copyConfigContainer(configVolumeMountName, paperWorkingDirVolumeName string
 	}
 }
 
+func copyDynmapConfigContainer(dynmapConfigVolumeMountName, pluginVolumeName string) corev1.Container {
+	return corev1.Container{
+		Name:  "copy-dynmap-config",
+		Image: "busybox",
+		Args:  []string{"sh", "-c", "mkdir -p /usr/local/minecraft/plugins/dynmap && cp /etc/dynmap/* /usr/local/minecraft/plugins/dynmap"},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      dynmapConfigVolumeMountName,
+				MountPath: "/etc/dynmap",
+			},
+			{
+				Name:      pluginVolumeName,
+				MountPath: "/usr/local/minecraft/plugins",
+			},
+		},
+	}
+}
+
 func vanillaTweaksDatapackContainer(ctx context.Context, datapacksVolumeMountName string, version string, tweaks *minecraftv1alpha1.VanillaTweaks) (corev1.Container, error) {
 	url, err := vanillatweaks.GetDatapackDownloadURL(ctx, version, tweaks.Datapacks)
 	if err != nil {
@@ -89,6 +107,20 @@ func vanillaTweaksDatapackContainer(ctx context.Context, datapacksVolumeMountNam
 			},
 		},
 	}, nil
+}
+
+func spigetInstallContainer(pluginResourceID, pluginName, pluginsVolumeMountName string) corev1.Container {
+	return corev1.Container{
+		Name:  "install-dynmap",
+		Image: "busybox",
+		Args:  []string{"sh", "-c", "cd /usr/local/minecraft/plugins && wget -O " + pluginName + ".jar 'https://api.spiget.org/v2/resources/" + pluginResourceID + "/download'"},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      pluginsVolumeMountName,
+				MountPath: "/usr/local/minecraft/plugins",
+			},
+		},
+	}
 }
 
 func downloadContainer(url, sha256, filename, volumeMountName string) corev1.Container {
@@ -119,6 +151,17 @@ func downloadContainer(url, sha256, filename, volumeMountName string) corev1.Con
 	}
 }
 
+func securityContext() *corev1.SecurityContext {
+	return &corev1.SecurityContext{
+		Privileged:               pointer.Bool(false),
+		RunAsUser:                pointer.Int64(1000),
+		RunAsGroup:               pointer.Int64(1000),
+		RunAsNonRoot:             pointer.Bool(true),
+		ReadOnlyRootFilesystem:   pointer.Bool(true),
+		AllowPrivilegeEscalation: pointer.Bool(false),
+	}
+}
+
 func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.ReplicaSet, error) {
 	const paperJarVolumeName = "paper-jar"
 	const paperWorkingDirVolumeName = "paper-workingdir"
@@ -127,6 +170,7 @@ func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.
 	const netherMountName = "world-nether"
 	const theEndMountName = "world-the-end"
 	const dataPacksMountName = "data-packs"
+	const pluginsMountName = "plugins"
 
 	latestBuild, err := bibliothek.LatestBuildForVersion(server.Spec.MinecraftVersion)
 	if err != nil {
@@ -167,16 +211,6 @@ func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.
 		// Paper expects to be able to write all kinds of stuff to it's working directory, so we give it a dedicated
 		// scratch dir for it's use under /run/minecraft.
 		WorkingDir: "/run/minecraft",
-		// We use a security context to clamp down what our Pod can do. In particular we ensure it can't execute as
-		// as root.
-		SecurityContext: &corev1.SecurityContext{
-			Privileged:               pointer.Bool(false),
-			RunAsUser:                pointer.Int64(1000),
-			RunAsGroup:               pointer.Int64(1000),
-			RunAsNonRoot:             pointer.Bool(true),
-			ReadOnlyRootFilesystem:   pointer.Bool(true),
-			AllowPrivilegeEscalation: pointer.Bool(false),
-		},
 		// TODO Make resources configurable
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
@@ -210,6 +244,10 @@ func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.
 			{
 				Name:      paperJarVolumeName,
 				MountPath: "/usr/local/minecraft",
+			},
+			{
+				Name:      pluginsMountName,
+				MountPath: "/usr/local/minecraft/plugins",
 			},
 			// Mount the various world directories under /var/minecraft
 			{
@@ -278,6 +316,12 @@ func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.
 								EmptyDir: &corev1.EmptyDirVolumeSource{},
 							},
 						},
+						{
+							Name: pluginsMountName,
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
 					},
 				},
 			},
@@ -336,8 +380,57 @@ func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.
 		initContainers = append(initContainers, vtDownloadContainer)
 	}
 
+	if server.Spec.Dynmap != nil && server.Spec.Dynmap.Enabled {
+		initContainers = append(initContainers, spigetInstallContainer("274", "dynmap", pluginsMountName))
+		mainJavaContainer.Ports = append(mainJavaContainer.Ports,
+			corev1.ContainerPort{
+				Name:          "dynmap",
+				ContainerPort: 8123,
+				Protocol:      corev1.ProtocolTCP,
+			})
+		const dynmapConfigMountName = "dynmap-config"
+		rs.Spec.Template.Spec.Volumes = append(rs.Spec.Template.Spec.Volumes,
+			corev1.Volume{
+				Name: dynmapConfigMountName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: dynmapConfigMapNameForServer(server),
+						},
+					},
+				},
+			})
+		// Use an init container to move the mounted dynmap config into the runtime plugins dir
+		initContainers = append(initContainers, copyDynmapConfigContainer(dynmapConfigMountName, pluginsMountName))
+
+		if server.Spec.Dynmap.MapStorage != nil {
+			const dynmapDataMountName = "dynmap-data"
+			rs.Spec.Template.Spec.Volumes = append(rs.Spec.Template.Spec.Volumes,
+				corev1.Volume{
+					Name: dynmapDataMountName,
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: server.Spec.Dynmap.MapStorage,
+					},
+				})
+			mainJavaContainer.VolumeMounts = append(
+				mainJavaContainer.VolumeMounts,
+				corev1.VolumeMount{
+					Name:      dynmapDataMountName,
+					MountPath: "/usr/local/minecraft/plugins/dynmap/web/tiles",
+				})
+		}
+	}
+
 	rs.Spec.Template.Spec.InitContainers = initContainers
 	rs.Spec.Template.Spec.Containers = append(rs.Spec.Template.Spec.Containers, mainJavaContainer)
+
+	// Put the security context on *everything*
+	for i := range rs.Spec.Template.Spec.InitContainers {
+		rs.Spec.Template.Spec.InitContainers[i].SecurityContext = securityContext()
+	}
+	for i := range rs.Spec.Template.Spec.Containers {
+		rs.Spec.Template.Spec.Containers[i].SecurityContext = securityContext()
+	}
 
 	return rs, nil
 }

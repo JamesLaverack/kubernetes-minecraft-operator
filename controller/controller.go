@@ -52,6 +52,23 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
+	if server.Spec.Dynmap != nil && server.Spec.Dynmap.Enabled {
+		done, err := reconcile.DynmapConfigMap(ctx, r.Client, &server)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if done {
+			return ctrl.Result{}, nil
+		}
+		done, err = reconcile.DynmapService(ctx, r.Client, &server)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if done {
+			return ctrl.Result{}, nil
+		}
+	}
+
 	done, err = reconcile.Service(ctx, r.Client, &server)
 	if err != nil {
 		return ctrl.Result{}, err
