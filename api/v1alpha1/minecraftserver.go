@@ -60,15 +60,31 @@ type DynmapSpec struct {
 	MapStorage *corev1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=Survival;Creative
+// +kubebuilder:default:=Survial
+type GameMode string
+
+const GameModeSurvival GameMode = "Survival"
+const GameModeCreative GameMode = "Creative"
+
+// +kubebuilder:validation:Enum=Public;AllowListOnly
+// +kubebuilder:default:=AllowListOnly
+type AccessMode string
+
+const AccessModeAllowListOnly AccessMode = "AllowListOnly"
+const AccessModePublic AccessMode = "Public"
+
 // MinecraftServerSpec defines the desired state of MinecraftServer
 type MinecraftServerSpec struct {
 	EULA             EULAAcceptance  `json:"eula"`
 	MinecraftVersion string          `json:"minecraftVersion"`
 	Type             ServerType      `json:"type"`
+	AccessMode       AccessMode      `json:"accessMode"`
 	AllowList        []Player        `json:"allowList,omitempty"`
 	OpsList          []Player        `json:"opsList,omitempty"`
 	World            *WorldSpec      `json:"world,omitempty"`
 	MOTD             string          `json:"motd"`
+	GameMode         GameMode        `json:"gameMode"`
 	MaxPlayers       int             `json:"maxPlayers"`
 	ViewDistance     int             `json:"viewDistance"`
 	Service          *ServiceSpec    `json:"service"`

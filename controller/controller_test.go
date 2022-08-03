@@ -80,6 +80,8 @@ func generateTestServer() minecraftv1alpha1.MinecraftServer {
 			EULA:             minecraftv1alpha1.EULAAcceptanceAccepted,
 			MinecraftVersion: "1.19",
 			Type:             minecraftv1alpha1.ServerTypePaper,
+			GameMode:         minecraftv1alpha1.GameModeSurvival,
+			AccessMode:       minecraftv1alpha1.AccessModePublic,
 			Service: &minecraftv1alpha1.ServiceSpec{
 				Type: minecraftv1alpha1.ServiceTypeClusterIP,
 			},

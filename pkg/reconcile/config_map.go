@@ -2,13 +2,14 @@ package reconcile
 
 import (
 	"context"
-	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/propertiesfile"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,7 +28,7 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 	if err != nil {
 		return false, err
 	}
-	data, err := configMapData(server.Spec)
+	data, err := configMapData(*server)
 	if err != nil {
 		return false, err
 	}
@@ -70,46 +71,51 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 	return false, nil
 }
 
-func propertiesFile(keysAndValues ...string) string {
-	sb := strings.Builder{}
-	for i := 0; i+1 < len(keysAndValues); i += 2 {
-		sb.WriteString(fmt.Sprintf("%s=%s\n", keysAndValues[i], keysAndValues[i+1]))
-	}
-	return sb.String()
-}
-
-func configMapData(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]string, error) {
+func configMapData(server minecraftv1alpha1.MinecraftServer) (map[string]string, error) {
 	config := make(map[string]string)
 
-	config["server.properties"] = propertiesFile(
-		"motd", spec.MOTD)
+	props := make(map[string]string, 0)
+	if server.Spec.MOTD != "" {
+		props["motd"] = server.Spec.MOTD
+	}
+	if server.Spec.GameMode != "" {
+		props["gamemode"] = strings.ToLower(string(server.Spec.GameMode))
+	}
+	if server.Spec.MaxPlayers > 0 {
+		props["max-players"] = strconv.Itoa(server.Spec.MaxPlayers)
+	}
+	if server.Spec.AccessMode == minecraftv1alpha1.AccessModeAllowListOnly {
+		props["enforce-whitelist"] = "true"
+		props["white-list"] = "true"
+	}
+	config["server.properties"] = propertiesfile.Write(props)
 
 	// We always write a eula.txt file, but we *only* put "true" in it if the MinecraftServer object has had the EULA
 	// explicitly accepted.
-	if spec.EULA == minecraftv1alpha1.EULAAcceptanceAccepted {
+	if server.Spec.EULA == minecraftv1alpha1.EULAAcceptanceAccepted {
 		config["eula.txt"] = "eula=true"
 	} else {
 		config["eula.txt"] = "eula=false"
 	}
 
-	if len(spec.AllowList) > 0 {
+	if len(server.Spec.AllowList) > 0 {
 		// We can directly marshall the Player objects
-		d, err := json.Marshal(spec.AllowList)
+		d, err := json.Marshal(server.Spec.AllowList)
 		if err != nil {
 			return nil, err
 		}
 		config["whitelist.json"] = string(d)
 	}
 
-	if len(spec.OpsList) > 0 {
+	if len(server.Spec.OpsList) > 0 {
 		type op struct {
 			UUID                string `json:"uuid,omitempty"`
 			Name                string `json:"name,omitempty"`
 			Level               int    `json:"level"`
 			BypassesPlayerLimit string `json:"bypassesPlayerLimit"`
 		}
-		ops := make([]op, len(spec.OpsList))
-		for i, o := range spec.OpsList {
+		ops := make([]op, len(server.Spec.OpsList))
+		for i, o := range server.Spec.OpsList {
 			ops[i] = op{
 				UUID:                o.UUID,
 				Name:                o.Name,
@@ -124,7 +130,7 @@ func configMapData(spec minecraftv1alpha1.MinecraftServerSpec) (map[string]strin
 		config["ops.json"] = string(d)
 	}
 
-	if spec.Monitoring != nil && spec.Monitoring.Type == minecraftv1alpha1.MonitoringTypePrometheusServiceMonitor {
+	if server.Spec.Monitoring != nil && server.Spec.Monitoring.Type == minecraftv1alpha1.MonitoringTypePrometheusServiceMonitor {
 		// prometheus-exporter plugin file
 		c := map[string]interface{}{
 			// This is the important bit, by default this plugin binds to localhost which isn't useful in K8s

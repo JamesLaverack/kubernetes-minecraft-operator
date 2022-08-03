@@ -42,6 +42,11 @@ spec:
           spec:
             description: MinecraftServerSpec defines the desired state of MinecraftServer
             properties:
+              accessMode:
+                enum:
+                - Public
+                - AllowListOnly
+                type: string
               allowList:
                 items:
                   description: Player is a Minecraft player defined by a username
@@ -83,6 +88,11 @@ spec:
                 enum:
                 - Accepted
                 - NotAccepted
+                type: string
+              gameMode:
+                enum:
+                - Survival
+                - Creative
                 type: string
               maxPlayers:
                 type: integer
@@ -213,7 +223,9 @@ spec:
                     type: object
                 type: object
             required:
+            - accessMode
             - eula
+            - gameMode
             - maxPlayers
             - minecraftVersion
             - motd
