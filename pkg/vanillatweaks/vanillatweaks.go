@@ -13,10 +13,7 @@ import (
 )
 
 func GetDatapackDownloadURL(ctx context.Context, v string, datapacks []minecraftv1alpha1.VanillaTweaksDatapack) (string, error) {
-	log, err := logr.FromContext(ctx)
-	if err != nil {
-		return "", err
-	}
+	log := logr.FromContextOrDiscard(ctx)
 
 	selected := make(map[string][]string)
 	for _, d := range datapacks {
