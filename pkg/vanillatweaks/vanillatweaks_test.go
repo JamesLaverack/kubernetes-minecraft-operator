@@ -3,9 +3,10 @@ package vanillatweaks
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestGetDatapackDownloadURL(t *testing.T) {

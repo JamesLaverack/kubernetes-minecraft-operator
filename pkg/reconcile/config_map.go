@@ -3,6 +3,9 @@ package reconcile
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
+
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
@@ -12,9 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 func configMapNameForServer(server *minecraftv1alpha1.MinecraftServer) string {
@@ -32,7 +33,7 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 	}
 
 	expectedName := types.NamespacedName{
-		Name: configMapNameForServer(server),
+		Name:      configMapNameForServer(server),
 		Namespace: server.Namespace,
 	}
 
@@ -71,7 +72,7 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 
 func propertiesFile(keysAndValues ...string) string {
 	sb := strings.Builder{}
-	for i:=0;i+1<len(keysAndValues);i+=2 {
+	for i := 0; i+1 < len(keysAndValues); i += 2 {
 		sb.WriteString(fmt.Sprintf("%s=%s\n", keysAndValues[i], keysAndValues[i+1]))
 	}
 	return sb.String()

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/reconcile"

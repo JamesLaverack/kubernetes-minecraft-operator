@@ -2,8 +2,9 @@ package main
 
 import (
 	"flag"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/controller"
 	"os"
+
+	"github.com/jameslaverack/kubernetes-minecraft-operator/controller"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.

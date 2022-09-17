@@ -1,8 +1,9 @@
 package version
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseMinorVersion(t *testing.T) {

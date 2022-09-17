@@ -2,14 +2,15 @@ package vanillatweaks
 
 import (
 	"context"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+
 	"github.com/go-logr/logr"
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/version"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/json"
-	"net/http"
-	"net/url"
 )
 
 func GetDatapackDownloadURL(ctx context.Context, v string, datapacks []minecraftv1alpha1.VanillaTweaksDatapack) (string, error) {
