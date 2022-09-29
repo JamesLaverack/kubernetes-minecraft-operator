@@ -17,19 +17,18 @@ type MinecraftBackupSpec struct {
 	BackupDestination *corev1.PersistentVolumeClaimVolumeSource `json:"backupDestination,omitempty"`
 }
 
+// +kubebuilder:validation:Enum:=Pending;Failed;Complete
+// +kubebuilder:default:=Pending
 type BackupState string
 
 const (
-	BackupStatePending  BackupState = "pending"
-	BackupStateComplete BackupState = "complete"
-	BackupStateFailed   BackupState = "failed"
+	BackupStatePending  BackupState = "Pending"
+	BackupStateComplete BackupState = "Complete"
+	BackupStateFailed   BackupState = "Failed"
 )
 
-// +kubebuilder:validation:Enum=Pending;Failed;Complete
-// +kubebuilder:default:=Pending
 type MinecraftBackupStatus struct {
-	State    BackupState `json:"state"`
-	Filename string      `json:"filename"`
+	State BackupState `json:"state"`
 }
 
 //+kubebuilder:object:root=true

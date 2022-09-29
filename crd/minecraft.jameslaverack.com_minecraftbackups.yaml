@@ -63,17 +63,14 @@ spec:
             - server
             type: object
           status:
-            enum:
-            - Pending
-            - Failed
-            - Complete
             properties:
-              filename:
-                type: string
               state:
+                enum:
+                - Pending
+                - Failed
+                - Complete
                 type: string
             required:
-            - filename
             - state
             type: object
         type: object
