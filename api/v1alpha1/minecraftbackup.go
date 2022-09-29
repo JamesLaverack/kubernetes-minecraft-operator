@@ -25,6 +25,8 @@ const (
 	BackupStateFailed   BackupState = "failed"
 )
 
+// +kubebuilder:validation:Enum=Pending;Failed;Complete
+// +kubebuilder:default:=Pending
 type MinecraftBackupStatus struct {
 	State    BackupState `json:"state"`
 	Filename string      `json:"filename"`
