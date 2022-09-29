@@ -5,6 +5,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func backupOwnerReference(backup *minecraftv1alpha1.MinecraftBackup) metav1.OwnerReference {
+	return *metav1.NewControllerRef(backup, minecraftv1alpha1.GroupVersion.WithKind("MinecraftBackup"))
+}
+
 func ownerReference(server *minecraftv1alpha1.MinecraftServer) metav1.OwnerReference {
 	return *metav1.NewControllerRef(server, minecraftv1alpha1.GroupVersion.WithKind("MinecraftServer"))
 }

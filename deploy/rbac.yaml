@@ -74,6 +74,21 @@ rules:
     resources:
       - configmaps
       - services
+      - pods
+      - serviceaccounts
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - rbac
+    resources:
+      - roles
+      - rolebindings
     verbs:
       - create
       - delete
@@ -98,6 +113,7 @@ rules:
       - minecraft.jameslaverack.com
     resources:
       - minecraftservers
+      - minecraftbackups
     verbs:
       - create
       - delete
