@@ -78,6 +78,14 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
+	done, err = reconcile.RCONService(ctx, r.Client, &server)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if done {
+		return ctrl.Result{}, nil
+	}
+
 	done, err = reconcile.ReplicaSet(ctx, r.Client, &server)
 	if err != nil {
 		return ctrl.Result{}, err
