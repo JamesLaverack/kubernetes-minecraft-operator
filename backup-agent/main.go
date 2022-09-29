@@ -3,17 +3,18 @@ package main
 import (
 	"archive/zip"
 	"context"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
-	"github.com/katnegermis/pocketmine-rcon"
-	uberzap "go.uber.org/zap"
 	"io"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	rcon "github.com/katnegermis/pocketmine-rcon"
+	uberzap "go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 func main() {
