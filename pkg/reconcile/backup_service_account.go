@@ -93,8 +93,16 @@ func roleBindingForBackup(backup *minecraftv1alpha1.MinecraftBackup) *rbacv1.Rol
 		},
 		RoleRef: rbacv1.RoleRef{
 			Name:     backup.Name,
-			APIGroup: corev1.GroupName,
-			Kind:     "ServiceAccount",
+			APIGroup: rbacv1.GroupName,
+			Kind:     "Role",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				APIGroup:  corev1.GroupName,
+				Name:      backup.Name,
+				Namespace: backup.Namespace,
+			},
 		},
 	}
 }
