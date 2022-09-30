@@ -76,6 +76,8 @@ func configMapData(server minecraftv1alpha1.MinecraftServer) (map[string]string,
 
 	props := make(map[string]string, 0)
 	props["enable-rcon"] = "true"
+	// TODO Use a real passsword
+	props["rcon.password"] = "password"
 	if server.Spec.MOTD != "" {
 		props["motd"] = server.Spec.MOTD
 	}

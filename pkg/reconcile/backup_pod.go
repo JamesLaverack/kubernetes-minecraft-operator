@@ -65,10 +65,12 @@ func podForBackup(backup *minecraftv1alpha1.MinecraftBackup, server *minecraftv1
 			OwnerReferences: []metav1.OwnerReference{backupOwnerReference(backup)},
 		},
 		Spec: corev1.PodSpec{
+			ServiceAccountName: backup.Name,
 			Containers: []corev1.Container{
 				{
-					Name:  "minecraft",
-					Image: "ghcr.io/jameslaverack/kubernetes-minecraft-operator-backup-agent:edge",
+					SecurityContext: securityContext(),
+					Name:            "minecraft",
+					Image:           "ghcr.io/jameslaverack/kubernetes-minecraft-operator-backup-agent@sha256:43c4b5fd33e89991792dd47abb6dcfb4b093289340f3323b87e515bb89e086b2",
 					Env: []corev1.EnvVar{
 						{
 							Name:  "SERVER_OBJECT_NAME",

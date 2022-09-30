@@ -65,7 +65,8 @@ func main() {
 
 	// TODO make sure to time out after the lease expires!
 
-	conn, err := rcon.NewConnection(rconAddress, "")
+	// TODO Use a real password
+	conn, err := rcon.NewConnection(rconAddress, "password")
 	if err != nil {
 		logger.With(uberzap.Error(err), uberzap.String("rcon-address", rconAddress)).Panic("Failed to connect to rcon")
 	}
@@ -158,7 +159,7 @@ func acquireLease(ctx context.Context, client *rest.RESTClient, serverObjectName
 
 		// Okay, the lease is expired or invalid, try to get it.
 		server.Annotations[ownerAnnotation] = name
-		server.Annotations[ownerAnnotation] = time.Now().Add(time.Minute * 10).Format(time.RFC3339)
+		server.Annotations[expiryAnnotation] = time.Now().Add(time.Minute * 10).Format(time.RFC3339)
 
 		result = client.Put().Resource("minecraftservers").Name(serverObjectName).Namespace(serverObjectNamespace).Body(&server).Do(ctx)
 		if result.Error() == nil {

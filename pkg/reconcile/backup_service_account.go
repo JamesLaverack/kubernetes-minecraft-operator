@@ -78,7 +78,7 @@ func roleForBackup(backup *minecraftv1alpha1.MinecraftBackup) *rbacv1.Role {
 			{
 				Verbs:         []string{"get", "list", "update"},
 				APIGroups:     []string{minecraftv1alpha1.GroupVersion.Group},
-				Resources:     []string{"MinecraftServer"},
+				Resources:     []string{"minecraftservers"},
 				ResourceNames: []string{backup.Spec.Server.Name},
 			},
 		},
