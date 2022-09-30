@@ -128,7 +128,7 @@ func main() {
 
 func acquireLease(ctx context.Context, client *rest.RESTClient, serverObjectName, serverObjectNamespace, name string) error {
 	for {
-		result := client.Get().Name(serverObjectName).Namespace(serverObjectNamespace).Do(ctx)
+		result := client.Get().Resource("minecraftservers").Name(serverObjectName).Namespace(serverObjectNamespace).Do(ctx)
 		if result.Error() != nil {
 			return result.Error()
 		}
@@ -160,7 +160,7 @@ func acquireLease(ctx context.Context, client *rest.RESTClient, serverObjectName
 		server.Annotations[ownerAnnotation] = name
 		server.Annotations[ownerAnnotation] = time.Now().Add(time.Minute * 10).Format(time.RFC3339)
 
-		result = client.Put().Name(serverObjectName).Namespace(serverObjectNamespace).Body(&server).Do(ctx)
+		result = client.Put().Resource("minecraftservers").Name(serverObjectName).Namespace(serverObjectNamespace).Body(&server).Do(ctx)
 		if result.Error() == nil {
 			// Done!
 			return nil
