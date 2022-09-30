@@ -70,7 +70,7 @@ func podForBackup(backup *minecraftv1alpha1.MinecraftBackup, server *minecraftv1
 				{
 					SecurityContext: securityContext(),
 					Name:            "minecraft",
-					Image:           "ghcr.io/jameslaverack/kubernetes-minecraft-operator-backup-agent@sha256:43c4b5fd33e89991792dd47abb6dcfb4b093289340f3323b87e515bb89e086b2",
+					Image:           "ghcr.io/jameslaverack/kubernetes-minecraft-operator-backup-agent:edge",
 					Env: []corev1.EnvVar{
 						{
 							Name:  "SERVER_OBJECT_NAME",
