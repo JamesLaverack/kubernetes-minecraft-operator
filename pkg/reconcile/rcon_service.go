@@ -81,7 +81,6 @@ func RCONServiceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Serv
 		},
 		Spec: corev1.ServiceSpec{
 			IPFamilyPolicy: &prefer,
-			Type:           corev1.ServiceType(server.Spec.Service.Type),
 			Selector:       podLabels(server),
 			Ports: []corev1.ServicePort{
 				{
