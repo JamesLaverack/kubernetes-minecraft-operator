@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 go build -a -o /backup-agent cmd/backup-agent/main.go
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
-COPY --from=builder /cmd/backup-agent /usr/local/bin/backup-agent
+COPY --from=builder /backup-agent /usr/local/bin/backup-agent
 USER 65532:65532
 
 ENTRYPOINT ["/usr/local/bin/backup-agent"]
