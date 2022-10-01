@@ -1,29 +1,24 @@
 package main
 
 import (
-	"flag"
-	"os"
-
-	"github.com/jameslaverack/kubernetes-minecraft-operator/controller"
-
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
-	uberzap "go.uber.org/zap"
+	"github.com/go-logr/zapr"
+	flag "github.com/spf13/pflag"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/controller"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
 )
 
 func init() {
@@ -32,70 +27,58 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
+	// Flags and configuration management
+	flag.String("metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.String("health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.Bool("leader-elect", false, "Enable leader election for controller manager. "+
+		"Enabling this will ensure there is only one active controller manager.")
 	flag.Parse()
+	viper.BindPFlags(flag.CommandLine)
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	// Logging
+	log, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
+	ctrl.SetLogger(zapr.NewLogger(log))
+	defer log.Sync()
 
+	// Manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
+		MetricsBindAddress:     viper.GetString("metrics-bind-address"),
 		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
+		HealthProbeBindAddress: viper.GetString("health-probe-bind-address"),
+		LeaderElection:         viper.GetBool("leader-elect"),
 		LeaderElectionID:       "95b821c2.jameslaverack.com",
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		log.With(zap.Error(err)).Fatal("Failed to start controller manager")
 	}
-
-	logger, err := uberzap.NewProduction()
-	if err != nil {
-		setupLog.Error(err, "unable to start logging")
-		os.Exit(1)
-	}
-	defer logger.Sync()
 
 	if err = (&controller.MinecraftServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "MinecraftServer")
-		os.Exit(1)
+		log.With(zap.Error(err), zap.String("controller", "MinecraftServer")).Fatal("Failed to setup controller")
 	}
 
 	if err = (&controller.MinecraftBackupReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create backup controller", "controller", "MinecraftBackup")
-		os.Exit(1)
+		log.With(zap.Error(err), zap.String("controller", "MinecraftBackup")).Fatal("Failed to setup controller")
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		log.With(zap.Error(err)).Fatal("Failed to setup health check endpoint")
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		log.With(zap.Error(err)).Fatal("Failed to setup ready check endpoint")
 	}
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+	log.Info("Starting manager")
+	if err := mgr.Start(logutil.IntoContext(ctrl.SetupSignalHandler(), log)); err != nil {
+		log.With(zap.Error(err)).Fatal("Failed to run manager")
 	}
 }

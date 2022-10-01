@@ -6,15 +6,17 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/go-logr/logr"
-	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/version"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/util/json"
+
+	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/version"
 )
 
 func GetDatapackDownloadURL(ctx context.Context, v string, datapacks []minecraftv1alpha1.VanillaTweaksDatapack) (string, error) {
-	log := logr.FromContextOrDiscard(ctx)
+	log := logutil.FromContextOrNew(ctx)
 
 	selected := make(map[string][]string)
 	for _, d := range datapacks {
@@ -38,9 +40,10 @@ func GetDatapackDownloadURL(ctx context.Context, v string, datapacks []minecraft
 	if err != nil {
 		return "", err
 	}
-	log.V(0).Info("Made request to Vanilla Tweaks API",
-		"request", form.Encode(),
-		"response", string(data))
+	log.With(
+		zap.String("request", form.Encode()),
+		zap.String("response", string(data))).
+		Debug("Made request to Vanilla Tweaks API")
 
 	var parsed map[string]interface{}
 	err = json.Unmarshal(data, &parsed)

@@ -3,30 +3,28 @@ package reconcile
 import (
 	"context"
 
-	"github.com/go-logr/logr"
-	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
 )
 
 func BackupRBAC(ctx context.Context, k8s client.Client, backup *minecraftv1alpha1.MinecraftBackup) (bool, error) {
-	log, err := logr.FromContext(ctx)
-	if err != nil {
-		return false, err
-	}
+	log := logutil.FromContextOrNew(ctx)
 
 	// Service Account
 	expectedSA := serviceAccountForBackup(backup)
 	var actualSA corev1.ServiceAccount
-	err = k8s.Get(ctx, client.ObjectKeyFromObject(expectedSA), &actualSA)
+	err := k8s.Get(ctx, client.ObjectKeyFromObject(expectedSA), &actualSA)
 	if client.IgnoreNotFound(err) != nil {
 		return false, err
 	}
 	if apierrors.IsNotFound(err) {
-		log.V(1).Info("SA doesn't exist, creating")
+		log.Info("SA doesn't exist, creating")
 		return true, k8s.Create(ctx, expectedSA)
 	}
 
@@ -38,7 +36,7 @@ func BackupRBAC(ctx context.Context, k8s client.Client, backup *minecraftv1alpha
 		return false, err
 	}
 	if apierrors.IsNotFound(err) {
-		log.V(1).Info("Role doesn't exist, creating")
+		log.Info("Role doesn't exist, creating")
 		return true, k8s.Create(ctx, expectedRole)
 	}
 
@@ -50,7 +48,7 @@ func BackupRBAC(ctx context.Context, k8s client.Client, backup *minecraftv1alpha
 		return false, err
 	}
 	if apierrors.IsNotFound(err) {
-		log.V(1).Info("Role doesn't exist, creating")
+		log.Info("Role doesn't exist, creating")
 		return true, k8s.Create(ctx, expectedRoleBinding)
 	}
 

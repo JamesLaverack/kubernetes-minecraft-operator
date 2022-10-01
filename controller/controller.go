@@ -3,15 +3,16 @@ package controller
 import (
 	"context"
 
-	"github.com/go-logr/logr"
-	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/reconcile"
+	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/reconcile"
 )
 
 // MinecraftServerReconciler reconciles a MinecraftServer object
@@ -21,15 +22,13 @@ type MinecraftServerReconciler struct {
 }
 
 func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.Log.
-		WithName("controller").
-		WithName("minecraftserver").
-		WithValues(
-			"name", req.Name,
-			"namespace", req.Namespace)
+	log := logutil.FromContextOrNew(ctx).With(
+		zap.String("name", req.Name),
+		zap.String("namespace", req.Namespace),
+		zap.String("controller", "MinecraftServer"))
+	ctx = logutil.IntoContext(ctx, log)
 
-	logger.Info("beginning reconciliation")
-	ctx = logr.NewContext(ctx, logger)
+	log.Info("beginning reconciliation")
 
 	// Go back to the API server with a get to find the full definition of the MinecraftServer object (we're only given
 	// the name and namespace at this point). We also might fail to find it, as we might have been triggered to
@@ -95,7 +94,7 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	// All good, return
-	logger.Info("All good")
+	log.Info("All good")
 	return ctrl.Result{}, nil
 }
 

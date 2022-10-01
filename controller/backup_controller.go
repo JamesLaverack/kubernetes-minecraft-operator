@@ -3,18 +3,17 @@ package controller
 import (
 	"context"
 
+	"go.uber.org/zap"
 	batchv1 "k8s.io/api/batch/v1"
-
-	rbacv1 "k8s.io/api/rbac/v1"
-
-	"github.com/go-logr/logr"
-	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/reconcile"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/reconcile"
 )
 
 // MinecraftServerReconciler reconciles a MinecraftServer object
@@ -24,15 +23,13 @@ type MinecraftBackupReconciler struct {
 }
 
 func (r *MinecraftBackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.Log.
-		WithName("controller").
-		WithName("minecraftbackup").
-		WithValues(
-			"name", req.Name,
-			"namespace", req.Namespace)
+	log := logutil.FromContextOrNew(ctx).With(
+		zap.String("name", req.Name),
+		zap.String("namespace", req.Namespace),
+		zap.String("controller", "MinecraftServer"))
+	ctx = logutil.IntoContext(ctx, log)
 
-	logger.Info("beginning reconciliation")
-	ctx = logr.NewContext(ctx, logger)
+	log.Info("beginning reconciliation")
 
 	var backup minecraftv1alpha1.MinecraftBackup
 	if err := r.Get(ctx, req.NamespacedName, &backup); err != nil {
@@ -65,7 +62,7 @@ func (r *MinecraftBackupReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	// All good, return
-	logger.Info("All good")
+	log.Info("All good")
 	return ctrl.Result{}, nil
 }
 

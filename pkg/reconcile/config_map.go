@@ -7,9 +7,6 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-	"github.com/go-logr/logr"
-	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/propertiesfile"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -17,6 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/propertiesfile"
 )
 
 func configMapNameForServer(server *minecraftv1alpha1.MinecraftServer) string {
@@ -24,10 +25,8 @@ func configMapNameForServer(server *minecraftv1alpha1.MinecraftServer) string {
 }
 
 func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.MinecraftServer) (bool, error) {
-	log, err := logr.FromContext(ctx)
-	if err != nil {
-		return false, err
-	}
+	log := logutil.FromContextOrNew(ctx)
+
 	data, err := configMapData(*server)
 	if err != nil {
 		return false, err
@@ -41,7 +40,7 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 	var actualConfigMap corev1.ConfigMap
 	err = k8s.Get(ctx, expectedName, &actualConfigMap)
 	if apierrors.IsNotFound(err) {
-		log.V(1).Info("ConfigMap does not exist, creating")
+		log.Info("ConfigMap does not exist, creating")
 		expectedConfigMap := corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            expectedName.Name,
@@ -56,18 +55,18 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 	}
 
 	if !hasCorrectOwnerReference(server, &actualConfigMap) {
-		log.V(1).Info("ConfigMap owner references incorrect, updating")
+		log.Info("ConfigMap owner references incorrect, updating")
 		actualConfigMap.OwnerReferences = append(actualConfigMap.OwnerReferences, ownerReference(server))
 		return true, k8s.Update(ctx, &actualConfigMap)
 	}
 
 	if !reflect.DeepEqual(actualConfigMap.Data, data) {
-		log.V(1).Info("ConfigMap data incorrect, updating")
+		log.Info("ConfigMap data incorrect, updating")
 		actualConfigMap.Data = data
 		return true, k8s.Update(ctx, &actualConfigMap)
 	}
 
-	log.V(2).Info("ConfigMap OK")
+	log.Debug("ConfigMap OK")
 	return false, nil
 }
 

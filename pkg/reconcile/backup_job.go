@@ -4,28 +4,26 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/go-logr/logr"
-	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
 )
 
 func BackupPod(ctx context.Context, k8s client.Client, backup *minecraftv1alpha1.MinecraftBackup) (bool, error) {
-	log, err := logr.FromContext(ctx)
-	if err != nil {
-		return false, err
-	}
+	log := logutil.FromContextOrNew(ctx)
 
 	var server minecraftv1alpha1.MinecraftServer
-	err = k8s.Get(ctx, client.ObjectKey{Name: backup.Spec.Server.Name, Namespace: backup.Namespace}, &server)
+	err := k8s.Get(ctx, client.ObjectKey{Name: backup.Spec.Server.Name, Namespace: backup.Namespace}, &server)
 	if client.IgnoreNotFound(err) != nil {
 		return false, err
 	}
 	if apierrors.IsNotFound(err) {
-		log.V(1).Info("No server to backup")
+		log.Info("No server to backup")
 		backup.Status.State = minecraftv1alpha1.BackupStateFailed
 		return true, k8s.Update(ctx, backup)
 	}
@@ -37,7 +35,7 @@ func BackupPod(ctx context.Context, k8s client.Client, backup *minecraftv1alpha1
 		return false, err
 	}
 	if apierrors.IsNotFound(err) {
-		log.V(1).Info("Job doesn't exist, creating")
+		log.Info("Job doesn't exist, creating")
 		return true, k8s.Create(ctx, expectedJob)
 	}
 

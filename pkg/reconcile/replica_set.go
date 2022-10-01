@@ -4,11 +4,6 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/go-logr/logr"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
-	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/bibliothek"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/vanillatweaks"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,13 +12,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/bibliothek"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/vanillatweaks"
 )
 
 func ReplicaSet(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.MinecraftServer) (bool, error) {
-	log, err := logr.FromContext(ctx)
-	if err != nil {
-		return false, err
-	}
+	log := logutil.FromContextOrNew(ctx)
 	expectedPS, err := rsForServer(ctx, server)
 	if err != nil {
 		return false, err
@@ -32,7 +30,7 @@ func ReplicaSet(ctx context.Context, k8s client.Client, server *minecraftv1alpha
 	var actualRS appsv1.ReplicaSet
 	err = k8s.Get(ctx, client.ObjectKeyFromObject(&expectedPS), &actualRS)
 	if apierrors.IsNotFound(err) {
-		log.V(1).Info("ReplicaSet does not exist, creating")
+		log.Info("ReplicaSet does not exist, creating")
 		return true, k8s.Create(ctx, &expectedPS)
 	} else if err != nil {
 		return false, errors.Wrap(err, "error performing GET on ReplicaSet")
@@ -41,11 +39,11 @@ func ReplicaSet(ctx context.Context, k8s client.Client, server *minecraftv1alpha
 	if !hasCorrectOwnerReference(server, &actualRS) {
 		// Set the right owner reference. Adding it to any existing ones.
 		actualRS.OwnerReferences = append(actualRS.OwnerReferences, ownerReference(server))
-		log.V(1).Info("ReplicaSet owner references incorrect, updating")
+		log.Info("ReplicaSet owner references incorrect, updating")
 		return true, k8s.Update(ctx, &actualRS)
 	}
 
-	log.V(2).Info("ReplicaSet OK")
+	log.Debug("ReplicaSet OK")
 	return false, nil
 }
 
