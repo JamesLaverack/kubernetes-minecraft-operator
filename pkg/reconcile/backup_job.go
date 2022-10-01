@@ -72,6 +72,7 @@ func jobForBackup(backup *minecraftv1alpha1.MinecraftBackup, server *minecraftv1
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
+					RestartPolicy:      corev1.RestartPolicyNever,
 					ServiceAccountName: backup.Name,
 					Containers: []corev1.Container{
 						{

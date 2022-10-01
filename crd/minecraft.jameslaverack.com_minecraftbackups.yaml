@@ -15,7 +15,14 @@ spec:
     singular: minecraftbackup
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.state
+      name: State
+      type: string
+    - jsonPath: .spec.server.name
+      name: Server
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         properties:

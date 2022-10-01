@@ -3,6 +3,8 @@ package controller
 import (
 	"context"
 
+	batchv1 "k8s.io/api/batch/v1"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	"github.com/go-logr/logr"
@@ -71,7 +73,7 @@ func (r *MinecraftBackupReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 func (r *MinecraftBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&minecraftv1alpha1.MinecraftBackup{}).
-		Owns(&corev1.Pod{}).
+		Owns(&batchv1.Job{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
