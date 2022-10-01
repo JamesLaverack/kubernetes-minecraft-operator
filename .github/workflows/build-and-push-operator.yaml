@@ -1,4 +1,4 @@
-name: Build & Push Container Image
+name: Build & Push Operator
 
 # Push a container image when the main branch is pushed (to publish the edge tag) or when a tag is pushed (to publish a
 # release). This isn't dependant on the tests passing or the linter being happy.
@@ -49,6 +49,7 @@ jobs:
         uses: docker/build-push-action@1cb9d22b932e4832bb29793b7777ec860fc1cde0
         with:
           context: .
+          file: operator.Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

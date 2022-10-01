@@ -1,4 +1,4 @@
-name: Build & Push Container Image
+name: Build & Push Backup Agent
 
 # Push a container image when the main branch is pushed (to publish the edge tag) or when a tag is pushed (to publish a
 # release). This isn't dependant on the tests passing or the linter being happy.

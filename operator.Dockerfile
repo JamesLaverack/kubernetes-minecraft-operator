@@ -10,13 +10,13 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY main.go main.go
+COPY cmd/operator/main.go cmd/operator/main.go
 COPY api/ api/
 COPY controller/ controller/
 COPY pkg/ pkg/
 
 # Build
-RUN CGO_ENABLED=0 go build -a -o /operator main.go
+RUN CGO_ENABLED=0 go build -a -o /operator cmd/operator/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

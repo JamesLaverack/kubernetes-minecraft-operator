@@ -10,16 +10,16 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY backup-agent/ backup-agent/
+COPY cmd/backup-agent/ cmd/backup-agent/
 COPY api/ api/
 
 # Build
-RUN CGO_ENABLED=0 go build -a -o /backup-agent backup-agent/main.go
+RUN CGO_ENABLED=0 go build -a -o /backup-agent cmd/backup-agent/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
-COPY --from=builder /backup-agent /usr/local/bin/backup-agent
+COPY --from=builder /cmd/backup-agent /usr/local/bin/backup-agent
 USER 65532:65532
 
 ENTRYPOINT ["/usr/local/bin/backup-agent"]
