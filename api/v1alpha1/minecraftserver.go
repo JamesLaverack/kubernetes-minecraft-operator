@@ -123,8 +123,8 @@ type MinecraftServerStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// +kubebuilder:printcolumn:name="Version",type=string,JSONPath=`.spec.minecraftVersion`
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
+// +kubebuilder:printcolumn:name="Version",type=string,JSONPath=`.spec.minecraftVersion`
 // MinecraftServer is the Schema for the minecraftservers API
 type MinecraftServer struct {
 	metav1.TypeMeta   `json:",inline"`
