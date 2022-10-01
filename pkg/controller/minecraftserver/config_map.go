@@ -1,4 +1,4 @@
-package reconcile
+package minecraftserver
 
 import (
 	"context"
@@ -45,7 +45,7 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            expectedName.Name,
 				Namespace:       expectedName.Namespace,
-				OwnerReferences: []metav1.OwnerReference{ownerReference(server)},
+				OwnerReferences: []metav1.OwnerReference{serverOwnerReference(server)},
 			},
 			Data: data,
 		}
@@ -56,7 +56,7 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 
 	if !hasCorrectOwnerReference(server, &actualConfigMap) {
 		log.Info("ConfigMap owner references incorrect, updating")
-		actualConfigMap.OwnerReferences = append(actualConfigMap.OwnerReferences, ownerReference(server))
+		actualConfigMap.OwnerReferences = append(actualConfigMap.OwnerReferences, serverOwnerReference(server))
 		return true, k8s.Update(ctx, &actualConfigMap)
 	}
 

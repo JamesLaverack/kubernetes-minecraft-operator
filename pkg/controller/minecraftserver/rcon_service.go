@@ -1,8 +1,9 @@
-package reconcile
+package minecraftserver
 
 import (
 	"context"
 
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,26 +13,17 @@ import (
 	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
 )
 
-func Service(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.MinecraftServer) (bool, error) {
+func RCONService(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.MinecraftServer) (bool, error) {
 	log := logutil.FromContextOrNew(ctx)
 
+	expectedService := RCONServiceForServer(server)
+	log = log.With(zap.String("rcon-service-name", expectedService.Name))
+
 	var actualService corev1.Service
-	err := k8s.Get(ctx, client.ObjectKeyFromObject(server), &actualService)
+	err := k8s.Get(ctx, client.ObjectKeyFromObject(&expectedService), &actualService)
 	if client.IgnoreNotFound(err) != nil {
 		return false, err
 	}
-
-	if server.Spec.Service == nil || server.Spec.Service.Type == minecraftv1alpha1.ServiceTypeNone {
-		// We should make sure we *don't* have a service.
-		if apierrors.IsNotFound(err) {
-			log.Debug("Service OK")
-			return false, nil
-		}
-		log.Info("Service exists when it shouldn't, removing")
-		return true, k8s.Delete(ctx, &actualService)
-	}
-
-	expectedService := serviceForServer(server)
 
 	if apierrors.IsNotFound(err) {
 		log.Info("Service doesn't exist, creating")
@@ -40,14 +32,8 @@ func Service(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.M
 
 	// Check service for integrity
 	if !hasCorrectOwnerReference(server, &actualService) {
-		log.Info("Service owner references incorrect, updating")
-		actualService.OwnerReferences = append(actualService.OwnerReferences, ownerReference(server))
-		return true, k8s.Update(ctx, &actualService)
-	}
-
-	if actualService.Spec.Type != expectedService.Spec.Type {
-		log.Info("Service type incorrect, updating")
-		actualService.Spec.Type = expectedService.Spec.Type
+		log.Info("Service owner references incorrect, adjusting")
+		actualService.OwnerReferences = append(actualService.OwnerReferences, serverOwnerReference(server))
 		return true, k8s.Update(ctx, &actualService)
 	}
 
@@ -81,34 +67,29 @@ func Service(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.M
 		}
 	}
 
-	log.Debug("Service OK")
+	log.Debug("RCON Service OK")
 	return false, nil
 }
 
-func serviceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service {
+func RCONServiceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service {
 	prefer := corev1.IPFamilyPolicyPreferDualStack
 	service := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            server.Name,
+			Name:            server.Name + "-rcon",
 			Namespace:       server.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ownerReference(server)},
+			OwnerReferences: []metav1.OwnerReference{serverOwnerReference(server)},
 		},
 		Spec: corev1.ServiceSpec{
 			IPFamilyPolicy: &prefer,
-			Type:           corev1.ServiceType(server.Spec.Service.Type),
 			Selector:       podLabels(server),
 			Ports: []corev1.ServicePort{
 				{
-					Name:     "minecraft",
-					Port:     25565,
+					Name:     "rcon",
+					Port:     25575,
 					Protocol: corev1.ProtocolTCP,
 				},
 			},
 		},
-	}
-
-	if server.Spec.Service.MinecraftNodePort != nil && *server.Spec.Service.MinecraftNodePort > 0 {
-		service.Spec.Ports[0].NodePort = *server.Spec.Service.MinecraftNodePort
 	}
 
 	return service

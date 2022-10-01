@@ -1,23 +1,22 @@
-package reconcile
+package minecraftserver
 
 import (
 	"context"
 
-	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
 )
 
-func RCONService(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.MinecraftServer) (bool, error) {
+func DynmapService(ctx context.Context, k8s client.Client, server *minecraftv1alpha1.MinecraftServer) (bool, error) {
 	log := logutil.FromContextOrNew(ctx)
 
-	expectedService := RCONServiceForServer(server)
-	log = log.With(zap.String("rcon-service-name", expectedService.Name))
+	expectedService := dynmapServiceForServer(server)
 
 	var actualService corev1.Service
 	err := k8s.Get(ctx, client.ObjectKeyFromObject(&expectedService), &actualService)
@@ -26,14 +25,14 @@ func RCONService(ctx context.Context, k8s client.Client, server *minecraftv1alph
 	}
 
 	if apierrors.IsNotFound(err) {
-		log.Info("Service doesn't exist, creating")
+		log.Info("Dynmap service doesn't exist, creating")
 		return true, k8s.Create(ctx, &expectedService)
 	}
 
 	// Check service for integrity
 	if !hasCorrectOwnerReference(server, &actualService) {
-		log.Info("Service owner references incorrect, adjusting")
-		actualService.OwnerReferences = append(actualService.OwnerReferences, ownerReference(server))
+		log.Info("Dynmap service owner references incorrect, updating")
+		actualService.OwnerReferences = append(actualService.OwnerReferences, serverOwnerReference(server))
 		return true, k8s.Update(ctx, &actualService)
 	}
 
@@ -43,17 +42,17 @@ func RCONService(ctx context.Context, k8s client.Client, server *minecraftv1alph
 			if expectedPort.Name == actualPort.Name {
 				foundPort = true
 				if expectedPort.Protocol != actualPort.Protocol {
-					log.Info("Service port protocol incorrect, updating")
+					log.Info("Dynmap service port protocol incorrect, updating")
 					actualService.Spec.Ports[i].Protocol = expectedPort.Protocol
 					return true, k8s.Update(ctx, &actualService)
 				}
 				if expectedPort.Port != actualPort.Port {
-					log.Info("Service port number incorrect, updating")
+					log.Info("Dynmap service port number incorrect, updating")
 					actualService.Spec.Ports[i].Port = expectedPort.Port
 					return true, k8s.Update(ctx, &actualService)
 				}
 				if expectedPort.NodePort != 0 && expectedPort.NodePort != actualPort.NodePort {
-					log.Info("Service node port number incorrect, updating")
+					log.Info("Dynmap service node port number incorrect, updating")
 					actualService.Spec.Ports[i].NodePort = expectedPort.NodePort
 					return true, k8s.Update(ctx, &actualService)
 				}
@@ -61,32 +60,40 @@ func RCONService(ctx context.Context, k8s client.Client, server *minecraftv1alph
 			}
 		}
 		if !foundPort {
-			log.Info("Service port missing, adding")
+			log.Info("Dynamp service port missing, adding")
 			actualService.Spec.Ports = append(actualService.Spec.Ports, expectedPort)
 			return true, k8s.Update(ctx, &actualService)
 		}
 	}
 
-	log.Debug("RCON Service OK")
+	if actualService.Spec.Type != expectedService.Spec.Type {
+		log.Info("Dynmap service type incorrect, updating")
+		actualService.Spec.Type = expectedService.Spec.Type
+		return true, k8s.Update(ctx, &actualService)
+	}
+
+	log.Debug("Service OK")
 	return false, nil
 }
 
-func RCONServiceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service {
+func dynmapServiceForServer(server *minecraftv1alpha1.MinecraftServer) corev1.Service {
 	prefer := corev1.IPFamilyPolicyPreferDualStack
 	service := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            server.Name + "-rcon",
+			Name:            server.Name + "-dynmap",
 			Namespace:       server.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ownerReference(server)},
+			OwnerReferences: []metav1.OwnerReference{serverOwnerReference(server)},
 		},
 		Spec: corev1.ServiceSpec{
 			IPFamilyPolicy: &prefer,
+			Type:           corev1.ServiceTypeClusterIP,
 			Selector:       podLabels(server),
 			Ports: []corev1.ServicePort{
 				{
-					Name:     "rcon",
-					Port:     25575,
-					Protocol: corev1.ProtocolTCP,
+					Name:       "dynmap",
+					Port:       80,
+					TargetPort: intstr.FromInt(8123),
+					Protocol:   corev1.ProtocolTCP,
 				},
 			},
 		},

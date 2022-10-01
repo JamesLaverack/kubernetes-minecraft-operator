@@ -1,4 +1,4 @@
-package reconcile
+package minecraftserver
 
 import (
 	"context"
@@ -38,7 +38,7 @@ func ReplicaSet(ctx context.Context, k8s client.Client, server *minecraftv1alpha
 
 	if !hasCorrectOwnerReference(server, &actualRS) {
 		// Set the right owner reference. Adding it to any existing ones.
-		actualRS.OwnerReferences = append(actualRS.OwnerReferences, ownerReference(server))
+		actualRS.OwnerReferences = append(actualRS.OwnerReferences, serverOwnerReference(server))
 		log.Info("ReplicaSet owner references incorrect, updating")
 		return true, k8s.Update(ctx, &actualRS)
 	}
@@ -150,7 +150,7 @@ func downloadContainer(url, sha256, filename, volumeMountName string) corev1.Con
 	}
 }
 
-func securityContext() *corev1.SecurityContext {
+func SecurityContext() *corev1.SecurityContext {
 	return &corev1.SecurityContext{
 		Privileged:               pointer.Bool(false),
 		RunAsUser:                pointer.Int64(1000),
@@ -274,7 +274,7 @@ func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            server.Name,
 			Namespace:       server.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ownerReference(server)},
+			OwnerReferences: []metav1.OwnerReference{serverOwnerReference(server)},
 		},
 		Spec: appsv1.ReplicaSetSpec{
 			Replicas: &replicas,
@@ -434,10 +434,10 @@ func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.
 
 	// Put the security context on *everything*
 	for i := range rs.Spec.Template.Spec.InitContainers {
-		rs.Spec.Template.Spec.InitContainers[i].SecurityContext = securityContext()
+		rs.Spec.Template.Spec.InitContainers[i].SecurityContext = SecurityContext()
 	}
 	for i := range rs.Spec.Template.Spec.Containers {
-		rs.Spec.Template.Spec.Containers[i].SecurityContext = securityContext()
+		rs.Spec.Template.Spec.Containers[i].SecurityContext = SecurityContext()
 	}
 
 	return rs, nil

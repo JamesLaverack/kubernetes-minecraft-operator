@@ -1,4 +1,4 @@
-package controller
+package minecraftserver
 
 import (
 	"context"
@@ -12,10 +12,8 @@ import (
 
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/reconcile"
 )
 
-// MinecraftServerReconciler reconciles a MinecraftServer object
 type MinecraftServerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -44,7 +42,7 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	// done we'll do it an exit instantly. This is because this function is triggered on changes to owned resources, so
 	// the act of creating or modifying an owned resource will cause this function to be called again anyway.
 
-	done, err := reconcile.ConfigMap(ctx, r.Client, &server)
+	done, err := ConfigMap(ctx, r.Client, &server)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -53,14 +51,14 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	if server.Spec.Dynmap != nil && server.Spec.Dynmap.Enabled {
-		done, err := reconcile.DynmapConfigMap(ctx, r.Client, &server)
+		done, err := DynmapConfigMap(ctx, r.Client, &server)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 		if done {
 			return ctrl.Result{}, nil
 		}
-		done, err = reconcile.DynmapService(ctx, r.Client, &server)
+		done, err = DynmapService(ctx, r.Client, &server)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -69,7 +67,7 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 	}
 
-	done, err = reconcile.Service(ctx, r.Client, &server)
+	done, err = Service(ctx, r.Client, &server)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -77,7 +75,7 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	done, err = reconcile.RCONService(ctx, r.Client, &server)
+	done, err = RCONService(ctx, r.Client, &server)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -85,7 +83,7 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	done, err = reconcile.ReplicaSet(ctx, r.Client, &server)
+	done, err = ReplicaSet(ctx, r.Client, &server)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -98,7 +96,6 @@ func (r *MinecraftServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
 func (r *MinecraftServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&minecraftv1alpha1.MinecraftServer{}).

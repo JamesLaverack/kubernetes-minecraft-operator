@@ -13,7 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/controller"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/controller/minecraftbackup"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/controller/minecraftserver"
 	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
 )
 
@@ -56,14 +57,14 @@ func main() {
 		log.With(zap.Error(err)).Fatal("Failed to start controller manager")
 	}
 
-	if err = (&controller.MinecraftServerReconciler{
+	if err = (&minecraftserver.MinecraftServerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		log.With(zap.Error(err), zap.String("controller", "MinecraftServer")).Fatal("Failed to setup controller")
 	}
 
-	if err = (&controller.MinecraftBackupReconciler{
+	if err = (&minecraftbackup.MinecraftBackupReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

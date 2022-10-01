@@ -1,4 +1,4 @@
-package reconcile
+package minecraftbackup
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
+	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/controller/minecraftserver"
 	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
 )
 
@@ -60,7 +61,7 @@ func jobForBackup(backup *minecraftv1alpha1.MinecraftBackup, server *minecraftv1
 	const netherMountName = "world-nether"
 	const theEndMountName = "world-the-end"
 	const outputMountName = "world-backup"
-	rconService := RCONServiceForServer(server)
+	rconService := minecraftserver.RCONServiceForServer(server)
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            backup.Name,
@@ -74,7 +75,7 @@ func jobForBackup(backup *minecraftv1alpha1.MinecraftBackup, server *minecraftv1
 					ServiceAccountName: backup.Name,
 					Containers: []corev1.Container{
 						{
-							SecurityContext: securityContext(),
+							SecurityContext: minecraftserver.SecurityContext(),
 							Name:            "backup-agent",
 							Image:           "ghcr.io/jameslaverack/kubernetes-minecraft-operator-backup-agent@sha256:144e42371621b28f98e6327f8b2879a63827ed0b89464cee36813c2c7df9f4c1",
 							Env: []corev1.EnvVar{

@@ -1,4 +1,4 @@
-package controller
+package minecraftbackup
 
 import (
 	"context"
@@ -13,10 +13,8 @@ import (
 
 	minecraftv1alpha1 "github.com/jameslaverack/kubernetes-minecraft-operator/api/v1alpha1"
 	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/logutil"
-	"github.com/jameslaverack/kubernetes-minecraft-operator/pkg/reconcile"
 )
 
-// MinecraftServerReconciler reconciles a MinecraftServer object
 type MinecraftBackupReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -26,7 +24,7 @@ func (r *MinecraftBackupReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	log := logutil.FromContextOrNew(ctx).With(
 		zap.String("name", req.Name),
 		zap.String("namespace", req.Namespace),
-		zap.String("controller", "MinecraftServer"))
+		zap.String("controller", "MinecraftBackup"))
 	ctx = logutil.IntoContext(ctx, log)
 
 	log.Info("beginning reconciliation")
@@ -45,7 +43,7 @@ func (r *MinecraftBackupReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	// done we'll do it an exit instantly. This is because this function is triggered on changes to owned resources, so
 	// the act of creating or modifying an owned resource will cause this function to be called again anyway.
 
-	done, err := reconcile.BackupRBAC(ctx, r.Client, &backup)
+	done, err := BackupRBAC(ctx, r.Client, &backup)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -53,7 +51,7 @@ func (r *MinecraftBackupReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	done, err = reconcile.BackupPod(ctx, r.Client, &backup)
+	done, err = BackupPod(ctx, r.Client, &backup)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -66,7 +64,6 @@ func (r *MinecraftBackupReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
 func (r *MinecraftBackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&minecraftv1alpha1.MinecraftBackup{}).
