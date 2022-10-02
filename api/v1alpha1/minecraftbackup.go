@@ -1,6 +1,6 @@
 package v1alpha1
 
-//go:generate controller-gen crd output:crd:artifacts:config=../../crd
+//go:generate controller-gen crd output:crd:artifacts:config=../../deploy/crd
 //go:generate controller-gen object
 
 import (
