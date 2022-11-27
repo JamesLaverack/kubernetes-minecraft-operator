@@ -2,6 +2,7 @@ package minecraftserver
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -27,8 +28,13 @@ func setupTestingEnvironment(ctx context.Context, t *testing.T) (client.WithWatc
 	logf.SetLogger(l)
 
 	// Setup testing environment
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NotEmpty(t, cwd)
 	testEnv := &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "crd")},
+		// The current working directory actually ends up being the directory of this file, so we have to use lots of
+		// ".." path segments to ascend up to the project root, and then back down into the "deploy/crd" directory.
+		CRDDirectoryPaths:     []string{filepath.Join(cwd, "..", "..", "..", "deploy", "crd")},
 		ErrorIfCRDPathMissing: true,
 	}
 
