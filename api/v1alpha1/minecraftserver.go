@@ -24,6 +24,11 @@ const (
 	EULAAcceptanceNotAccepted EULAAcceptance = "NotAccepted"
 )
 
+type ForgeSpec struct {
+	Version    string `json:"version,omitempty"`
+	ModpackURL string `json:"modpackURL,omitempty"`
+}
+
 // Player is a Minecraft player defined by a username or a UUID
 type Player struct {
 	Name string `json:"name,omitempty"`
@@ -91,6 +96,7 @@ type MinecraftServerSpec struct {
 	VanillaTweaks    *VanillaTweaks  `json:"vanillaTweaks,omitempty"`
 	Monitoring       *MonitoringSpec `json:"monitoring,omitempty"`
 	Dynmap           *DynmapSpec     `json:"dynmap,omitempty"`
+	Forge            *ForgeSpec      `json:"forge,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=None;ClusterIP;NodePort;LoadBalancer
