@@ -25,8 +25,10 @@ const (
 )
 
 type ForgeSpec struct {
-	Version    string `json:"version,omitempty"`
-	ModpackURL string `json:"modpackURL,omitempty"`
+	ForgeVersion            string `json:"forgeVersion"`
+	ForgeInstallerSHA256Sum string `json:"forgeInstallerSha256Sum"`
+	ModpackZipURL           string `json:"modpackZipUrl"`
+	ModpackZipSHA256Sum     string `json:"modpackZipSha256Sum"`
 }
 
 // Player is a Minecraft player defined by a username or a UUID
@@ -36,6 +38,7 @@ type Player struct {
 }
 
 type WorldSpec struct {
+	Seed      string                                    `json:"seed,omitempty"`
 	Overworld *corev1.PersistentVolumeClaimVolumeSource `json:"overworld,omitempty"`
 	Nether    *corev1.PersistentVolumeClaimVolumeSource `json:"nether,omitempty"`
 	TheEnd    *corev1.PersistentVolumeClaimVolumeSource `json:"theEnd,omitempty"`

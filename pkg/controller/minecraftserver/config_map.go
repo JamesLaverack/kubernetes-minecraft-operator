@@ -90,6 +90,9 @@ func configMapData(server minecraftv1alpha1.MinecraftServer) (map[string]string,
 		props["enforce-whitelist"] = "true"
 		props["white-list"] = "true"
 	}
+	if server.Spec.World != nil && server.Spec.World.Seed != "" {
+		props["level-seed"] = server.Spec.World.Seed
+	}
 	config["server.properties"] = propertiesfile.Write(props)
 
 	// We always write a eula.txt file, but we *only* put "true" in it if the MinecraftServer object has had the EULA
