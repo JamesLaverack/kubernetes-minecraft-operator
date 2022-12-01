@@ -3,6 +3,7 @@ package minecraftserver
 import (
 	"context"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
@@ -124,7 +125,7 @@ func spigetInstallContainer(pluginResourceID, pluginName, pluginsVolumeMountName
 
 func downloadContainer(url, sha256, filename, volumeMountName string) corev1.Container {
 	return corev1.Container{
-		Name:            "download",
+		Name:            "download-" + strings.Replace(filename, ".", "-", -1),
 		Image:           "ghcr.io/jameslaverack/download:edge",
 		ImagePullPolicy: corev1.PullAlways,
 		VolumeMounts: []corev1.VolumeMount{

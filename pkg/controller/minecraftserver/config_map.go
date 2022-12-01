@@ -2,7 +2,6 @@ package minecraftserver
 
 import (
 	"context"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -60,11 +59,11 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 		return true, k8s.Update(ctx, &actualConfigMap)
 	}
 
-	if !reflect.DeepEqual(actualConfigMap.Data, data) {
-		log.Info("ConfigMap data incorrect, updating")
-		actualConfigMap.Data = data
-		return true, k8s.Update(ctx, &actualConfigMap)
-	}
+	//if !reflect.DeepEqual(actualConfigMap.Data, data) {
+	//	log.Info("ConfigMap data incorrect, updating")
+	//	actualConfigMap.Data = data
+	//	return true, k8s.Update(ctx, &actualConfigMap)
+	//}
 
 	log.Debug("ConfigMap OK")
 	return false, nil

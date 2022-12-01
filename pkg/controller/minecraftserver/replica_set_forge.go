@@ -32,6 +32,7 @@ func forgeDownloadUrl(server *v1alpha1.MinecraftServer) (*url.URL, error) {
 
 func rsForServerTypeForge(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.ReplicaSet, error) {
 	const forgeInstallerVolumeName = "forge-installer-jar"
+	const installerTmp = "installer-tmp"
 	const modpackZipVolumeName = "modpack-zip-volume"
 	const forgeWorkingDirVolumeName = "forge-workingdir"
 	const configVolumeMountName = "config"
@@ -60,7 +61,7 @@ func rsForServerTypeForge(ctx context.Context, server *v1alpha1.MinecraftServer)
 			// Flags after this point are flags to the Forge installer, and not Java
 			////////////////////////////////////////////////////////////
 			// Disable the GUI, no need in a container
-			"--installServer /run/minecraft"},
+			"--installServer=/run/minecraft"},
 		WorkingDir: "/usr/local/minecraft",
 		// TODO Make resources configurable
 		Resources: corev1.ResourceRequirements{
@@ -82,6 +83,10 @@ func rsForServerTypeForge(ctx context.Context, server *v1alpha1.MinecraftServer)
 				Name:      forgeWorkingDirVolumeName,
 				MountPath: "/run/minecraft",
 			},
+			{
+				Name:      installerTmp,
+				MountPath: "/tmp",
+			},
 		},
 	}
 	modpackDownloadContainer := downloadContainer(
@@ -94,7 +99,7 @@ func rsForServerTypeForge(ctx context.Context, server *v1alpha1.MinecraftServer)
 		// TODO Configure Java Version
 		Image: "busybox",
 		Args: []string{
-			"unzip /usr/local/modpack/modpack.zip -d /run/minecraft"},
+			"unzip", "/usr/local/modpack/modpack.zip", "-d/run/minecraft"},
 		// TODO Make resources configurable
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
@@ -130,6 +135,7 @@ func rsForServerTypeForge(ctx context.Context, server *v1alpha1.MinecraftServer)
 		// TODO Configure Java Version
 		Image: "eclipse-temurin:17",
 		Args: []string{
+			"sh",
 			"run.sh",
 			// Set the world directory to be /var/minecraft
 			//"--world-container=/var/minecraft",
@@ -145,11 +151,11 @@ func rsForServerTypeForge(ctx context.Context, server *v1alpha1.MinecraftServer)
 		// TODO Make resources configurable
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
-				corev1.ResourceMemory: resource.MustParse("6Gi"),
+				corev1.ResourceMemory: resource.MustParse("10Gi"),
 				// No CPU limit to avoid CPU throttling
 			},
 			Requests: corev1.ResourceList{
-				corev1.ResourceMemory: resource.MustParse("2.5Gi"),
+				corev1.ResourceMemory: resource.MustParse("8Gi"),
 				corev1.ResourceCPU:    resource.MustParse("2"),
 			},
 		},
@@ -161,11 +167,6 @@ func rsForServerTypeForge(ctx context.Context, server *v1alpha1.MinecraftServer)
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{
-			// This will mount config files, like server.properties, under /etc/minecraft/server.properties
-			{
-				Name:      configVolumeMountName,
-				MountPath: "/etc/minecraft",
-			},
 			// This gives forge a writeable runtime directory, this is used as the working directory.
 			{
 				Name:      forgeWorkingDirVolumeName,
@@ -174,11 +175,11 @@ func rsForServerTypeForge(ctx context.Context, server *v1alpha1.MinecraftServer)
 			// Mount the various world directories under /var/minecraft
 			{
 				Name:      worldMountName,
-				MountPath: "/var/minecraft/world",
+				MountPath: "/run/minecraft/world",
 			},
 			{
 				Name:      dataPacksMountName,
-				MountPath: "/var/minecraft/world/datapacks",
+				MountPath: "/run/minecraft/world/datapacks",
 			},
 		},
 	}
@@ -225,6 +226,18 @@ func rsForServerTypeForge(ctx context.Context, server *v1alpha1.MinecraftServer)
 						},
 						{
 							Name: dataPacksMountName,
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: modpackZipVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: installerTmp,
 							VolumeSource: corev1.VolumeSource{
 								EmptyDir: &corev1.EmptyDirVolumeSource{},
 							},
