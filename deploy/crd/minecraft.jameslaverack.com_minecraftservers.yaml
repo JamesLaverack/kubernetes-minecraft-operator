@@ -89,6 +89,22 @@ spec:
                 - Accepted
                 - NotAccepted
                 type: string
+              forge:
+                properties:
+                  forgeInstallerSha256Sum:
+                    type: string
+                  forgeVersion:
+                    type: string
+                  modpackZipSha256Sum:
+                    type: string
+                  modpackZipUrl:
+                    type: string
+                required:
+                - forgeInstallerSha256Sum
+                - forgeVersion
+                - modpackZipSha256Sum
+                - modpackZipUrl
+                type: object
               gameMode:
                 enum:
                 - Survival
@@ -202,6 +218,8 @@ spec:
                     required:
                     - claimName
                     type: object
+                  seed:
+                    type: string
                   theEnd:
                     description: PersistentVolumeClaimVolumeSource references the
                       user's PVC in the same namespace. This volume finds the bound
