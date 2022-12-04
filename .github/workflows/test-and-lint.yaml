@@ -69,7 +69,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18.x
+          go-version: 1.19.3
 
       - name: Install setup-envtest
         run: go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
