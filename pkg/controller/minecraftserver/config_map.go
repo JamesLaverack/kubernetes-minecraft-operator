@@ -2,7 +2,6 @@ package minecraftserver
 
 import (
 	"context"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -60,11 +59,11 @@ func ConfigMap(ctx context.Context, k8s client.Client, server *minecraftv1alpha1
 		return true, k8s.Update(ctx, &actualConfigMap)
 	}
 
-	if !reflect.DeepEqual(actualConfigMap.Data, data) {
-		log.Info("ConfigMap data incorrect, updating")
-		actualConfigMap.Data = data
-		return true, k8s.Update(ctx, &actualConfigMap)
-	}
+	//if !reflect.DeepEqual(actualConfigMap.Data, data) {
+	//	log.Info("ConfigMap data incorrect, updating")
+	//	actualConfigMap.Data = data
+	//	return true, k8s.Update(ctx, &actualConfigMap)
+	//}
 
 	log.Debug("ConfigMap OK")
 	return false, nil
@@ -89,6 +88,9 @@ func configMapData(server minecraftv1alpha1.MinecraftServer) (map[string]string,
 	if server.Spec.AccessMode == minecraftv1alpha1.AccessModeAllowListOnly {
 		props["enforce-whitelist"] = "true"
 		props["white-list"] = "true"
+	}
+	if server.Spec.World != nil && server.Spec.World.Seed != "" {
+		props["level-seed"] = server.Spec.World.Seed
 	}
 	config["server.properties"] = propertiesfile.Write(props)
 

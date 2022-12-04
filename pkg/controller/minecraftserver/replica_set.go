@@ -3,6 +3,7 @@ package minecraftserver
 import (
 	"context"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
@@ -124,7 +125,7 @@ func spigetInstallContainer(pluginResourceID, pluginName, pluginsVolumeMountName
 
 func downloadContainer(url, sha256, filename, volumeMountName string) corev1.Container {
 	return corev1.Container{
-		Name:            "download",
+		Name:            "download-" + strings.Replace(filename, ".", "-", -1),
 		Image:           "ghcr.io/jameslaverack/download:edge",
 		ImagePullPolicy: corev1.PullAlways,
 		VolumeMounts: []corev1.VolumeMount{
@@ -162,6 +163,17 @@ func SecurityContext() *corev1.SecurityContext {
 }
 
 func rsForServer(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.ReplicaSet, error) {
+	switch server.Spec.Type {
+	case minecraftv1alpha1.ServerTypePaper:
+		return rsForServerTypePaper(ctx, server)
+	case minecraftv1alpha1.ServerTypeForge:
+		return rsForServerTypeForge(ctx, server)
+	default:
+		return appsv1.ReplicaSet{}, errors.New("Unrecognised server type")
+	}
+}
+
+func rsForServerTypePaper(ctx context.Context, server *v1alpha1.MinecraftServer) (appsv1.ReplicaSet, error) {
 	const paperJarVolumeName = "paper-jar"
 	const paperWorkingDirVolumeName = "paper-workingdir"
 	const configVolumeMountName = "config"

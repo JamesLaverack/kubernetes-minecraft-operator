@@ -24,6 +24,13 @@ const (
 	EULAAcceptanceNotAccepted EULAAcceptance = "NotAccepted"
 )
 
+type ForgeSpec struct {
+	ForgeVersion            string `json:"forgeVersion"`
+	ForgeInstallerSHA256Sum string `json:"forgeInstallerSha256Sum"`
+	ModpackZipURL           string `json:"modpackZipUrl"`
+	ModpackZipSHA256Sum     string `json:"modpackZipSha256Sum"`
+}
+
 // Player is a Minecraft player defined by a username or a UUID
 type Player struct {
 	Name string `json:"name,omitempty"`
@@ -31,6 +38,7 @@ type Player struct {
 }
 
 type WorldSpec struct {
+	Seed      string                                    `json:"seed,omitempty"`
 	Overworld *corev1.PersistentVolumeClaimVolumeSource `json:"overworld,omitempty"`
 	Nether    *corev1.PersistentVolumeClaimVolumeSource `json:"nether,omitempty"`
 	TheEnd    *corev1.PersistentVolumeClaimVolumeSource `json:"theEnd,omitempty"`
@@ -91,6 +99,7 @@ type MinecraftServerSpec struct {
 	VanillaTweaks    *VanillaTweaks  `json:"vanillaTweaks,omitempty"`
 	Monitoring       *MonitoringSpec `json:"monitoring,omitempty"`
 	Dynmap           *DynmapSpec     `json:"dynmap,omitempty"`
+	Forge            *ForgeSpec      `json:"forge,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=None;ClusterIP;NodePort;LoadBalancer
