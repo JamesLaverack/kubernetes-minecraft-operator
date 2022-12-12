@@ -1,6 +1,8 @@
 [workspace]
 
 members = [
+    "api",
+    "crdgen",
     "operator",
 ]
 
