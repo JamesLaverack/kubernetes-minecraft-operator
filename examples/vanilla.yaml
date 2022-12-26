@@ -1,0 +1,10 @@
+apiVersion: minecraft.laverack.dev/v1alpha2
+kind: MinecraftServer
+metadata:
+  name: vanilla-server
+spec:
+  eula: Accepted
+  serverType: Vanilla
+  version:
+    minecraft: 1.19.3
+

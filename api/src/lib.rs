@@ -16,13 +16,14 @@ pub struct MinecraftServerSpec {
     pub eula: EULA,
     pub version: MinecraftVersion,
     pub server_type: ServerType,
-    pub game: GameSpec,
+    pub game: Option<GameSpec>,
     pub motd: Option<String>,
-    pub players: PlayersSpec,
-    pub world: WorldSpec,
-    pub service_template: ServiceTemplateSpec,
-    pub datapacks: Vec<Datapack>,
-    pub mods: Vec<Mod>,
+    pub players: Option<PlayersSpec>,
+    pub world: Option<WorldSpec>,
+    pub service_template: Option<ServiceTemplateSpec>,
+    pub rcons_service_template: Option<ServiceTemplateSpec>,
+    pub datapacks: Option<Vec<Datapack>>,
+    pub mods: Option<Vec<Mod>>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema, Default)]
@@ -147,3 +148,4 @@ pub struct Checksum {
 pub struct MinecraftServerStatus {
     pub java_version: String,
 }
+
