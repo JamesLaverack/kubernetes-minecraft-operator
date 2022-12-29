@@ -3,19 +3,20 @@ use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use crate::manifest::VersionType;
+use std::collections::HashMap;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Client {
-    pub arguments: Arguments,
+    pub arguments: Option<Arguments>,
     pub id: String,
     pub assets: String,
     pub asset_index: AssetIndex,
-    pub compliance_level: u8,
+    pub compliance_level: Option<u8>,
     pub downloads: Downloads,
-    pub java_version: JavaVersion,
+    pub java_version: Option<JavaVersion>,
     pub libraries: Vec<Library>,
-    pub logging: Logging,
+    pub logging: Option<Logging>,
     pub main_class: String,
     pub minimum_launcher_version: u64,
     #[serde(rename = "type")]
@@ -48,12 +49,20 @@ pub struct LoggingFile {
 pub struct Library {
     pub name: String,
     pub downloads: LibraryDownloads,
-    pub rules: Option<Vec<Rule>>
+    pub rules: Option<Vec<Rule>>,
+    pub natives: Option<HashMap<String, String>>,
+    pub extract: Option<LibraryExtract>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct LibraryExtract {
+    pub exclude: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct LibraryDownloads {
-    pub artifact: LibraryArtifact,
+    pub artifact: Option<LibraryArtifact>,
+    pub classifiers: Option<HashMap<String, LibraryArtifact>>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -67,17 +76,17 @@ pub struct LibraryArtifact {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct JavaVersion {
-    component: String,
-    major_version: u64,
+    pub component: String,
+    pub major_version: u64,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Downloads {
     // These keys are snake_case in the JSON, not camelCase.
-    client: Download,
-    client_mappings: Download,
-    server: Download,
-    server_mappings: Download,
+    pub client: Download,
+    pub client_mappings: Option<Download>,
+    pub server: Option<Download>,
+    pub server_mappings: Option<Download>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -155,7 +164,23 @@ mod tests {
     fn parse_1_19_3() -> Result<(), Box<dyn Error>> {
         let c: Client = serde_json::from_reader(load_test_file("1.19.3.json")?)?;
         assert_eq!(c.id, "1.19.3");
-        assert_eq!(c.java_version.major_version, 17);
+        assert_eq!(c.java_version.unwrap().major_version, 17);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_22w19a() -> Result<(), Box<dyn Error>> {
+        let c: Client = serde_json::from_reader(load_test_file("22w19a.json")?)?;
+        assert_eq!(c.id, "22w19a");
+        assert_eq!(c.java_version.unwrap().major_version, 17);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_19w35a() -> Result<(), Box<dyn Error>> {
+        let c: Client = serde_json::from_reader(load_test_file("19w35a.json")?)?;
+        assert_eq!(c.id, "19w35a");
+        assert_eq!(c.java_version.unwrap().major_version, 8);
         Ok(())
     }
 }
