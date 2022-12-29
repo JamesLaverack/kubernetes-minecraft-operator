@@ -4,5 +4,7 @@ members = [
     "api",
     "crdgen",
     "operator",
+    "builder",
+    "minecraft_version_api",
 ]
 
