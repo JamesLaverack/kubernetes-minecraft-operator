@@ -151,7 +151,7 @@ func rsForServerTypeForge(ctx context.Context, server *v1alpha1.MinecraftServer)
 		// TODO Make resources configurable
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
-				corev1.ResourceMemory: resource.MustParse("10Gi"),
+				corev1.ResourceMemory: resource.MustParse("12Gi"),
 				// No CPU limit to avoid CPU throttling
 			},
 			Requests: corev1.ResourceList{
