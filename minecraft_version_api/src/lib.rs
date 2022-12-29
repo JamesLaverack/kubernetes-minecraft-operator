@@ -5,25 +5,25 @@ use url::Url;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct VersionManifest {
-    latest: Latest,
-    versions: Vec<Version>,
+    pub latest: Latest,
+    pub versions: Vec<Version>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Latest {
-    release: String,
-    snapshot: String,
+    pub release: String,
+    pub snapshot: String,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Version {
-    id: String,
+    pub id: String,
     #[serde(rename = "type")]
-    version_type: VersionType,
-    url: Url,
-    time: DateTime<Utc>,
+    pub version_type: VersionType,
+    pub url: Url,
+    pub time: DateTime<Utc>,
     #[serde(rename = "releaseTime")]
-    release_time: DateTime<Utc>,
+    pub release_time: DateTime<Utc>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
@@ -57,49 +57,37 @@ impl VersionManifest {
     }
 }
 
-fn is_latest_release(version: &str) -> bool {
-    return version == "latest"
-        || version == "release"
-        || version == "latest_release"
-        || version == "latest-release"
-        || version == "LatestRelease"
-        || version == "latestRelease";
-}
-
-fn is_latest_snapshot(version: &str) -> bool {
-    return version == "snapshot"
-        || version == "latest_snapshot"
-        || version == "latest-snapshot"
-        || version == "LatestSnapshot"
-        || version == "latestSnapshot";
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs::File;
-    use std::io::BufReader;
+    use std::io;
     use std::{error::Error, path::PathBuf};
 
-    #[test]
-    fn manifest_parse() -> Result<(), Box<dyn Error>> {
+    fn load_test_file(s: &str) -> io::Result<Box<dyn io::Read>> {
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        d.push("resources/test/version_manifest.json");
-        let file = File::open(d)?;
-        let reader = BufReader::new(file);
-        let manifest: VersionManifest = serde_json::from_reader(reader)?;
+        d.push("resources/test");
+        d.push(s);
+        io::BufReader::new(File::open(d)?)
+    }
 
+    #[test]
+    fn manifest_parse_v1() -> Result<(), Box<dyn Error>> {
+        let manifest: VersionManifest = serde_json::from_reader(load_test_file("version_manifest.json"))?;
+        assert_eq!(manifest.latest.release, "1.19.3");
+        Ok(())
+    }
+
+    #[test]
+    fn manifest_parse_v2() -> Result<(), Box<dyn Error>> {
+        let manifest: VersionManifest = serde_json::from_reader(load_test_file("version_manifest_v2.json"))?;
         assert_eq!(manifest.latest.release, "1.19.3");
         Ok(())
     }
 
     #[test]
     fn find_exact() -> Result<(), Box<dyn Error>> {
-        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        d.push("resources/test/version_manifest.json");
-        let file = File::open(d)?;
-        let reader = BufReader::new(file);
-        let manifest: VersionManifest = serde_json::from_reader(reader)?;
+        let manifest: VersionManifest = serde_json::from_reader(load_test_file("version_manifest_v2.json"))?;
 
         let v = manifest.find_exact("1.18.2");
         assert!(v.is_some());

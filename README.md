@@ -10,7 +10,7 @@ or graphical admin interfaces are required.
 🚧 This is **alpha-grade** software. No guarantee is provided (see the [license](LICENSE)), and users are
 responsible for the security and data-integrity of their own servers. The API surface is subject to change without notice.
 
-## Installing
+## Installation
 
 You can install the latest version of the operator by running this command with your cluster configured in `kubectl`.
 
@@ -18,6 +18,16 @@ You can install the latest version of the operator by running this command with 
 curl -L https://github.com/JamesLaverack/kubernetes-minecraft-operator/releases/latest/download/operator.yaml | kubectl apply -f -
 ```
 
+##  Components
+
+This operator is built in Rust, with multiple crates as components:
+
+- `api` is a library crate that contains only the API definitions.
+- `crdgen` is a binary crate that just emits the CRD definitions for the API. You can invoke it with `cargo run --bin crdgen`.
+- `operator` is the binary that runs in the operator. It is responsible for creating `Service`s and `Pod`s.
+- `builder` is the binary that runs as an init container. Given a server definition and an output directory, it creates the environment for the 
+- `monitor` is the binary that runs as a sidecar container. It watches config for changes and updates the status.
+- `rcons-proxy` is the binary that also runs as a sidecar. It provides an rcons proxy that authenticates with the Kubernetes API.
 ### Tags
 
 The command above will install the operator at a specific release. You can also change the image tag to either `latest`
