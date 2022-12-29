@@ -16,17 +16,16 @@ pub struct Latest {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Version {
     pub id: String,
     #[serde(rename = "type")]
     pub version_type: VersionType,
     pub url: Url,
     pub time: DateTime<Utc>,
-    #[serde(rename = "releaseTime")]
     pub release_time: DateTime<Utc>,
     // TODO Use a real sha1 type https://github.com/RustCrypto/traits/pull/1078
     pub sha1: String,
-    #[serde(rename = "complianceLevel")]
     pub compliance_level: u8,
 }
 
