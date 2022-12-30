@@ -1,12 +1,9 @@
 use api::MinecraftServer;
-use minecraft_version_api::{VERSION_MANIFEST_URL, VersionManifest};
-use kube::{
-    api::Api,
-    client::Client,
-};
+use kube::{api::Api, client::Client};
+use minecraft_version_api::manifest::{VersionManifest, VERSION_MANIFEST_URL};
+use reqwest;
 use std::env;
 use std::path::PathBuf;
-use reqwest;
 extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
@@ -66,14 +63,16 @@ async fn download_server(context: Context, spec: api::MinecraftServerSpec) -> an
     match spec.server_type {
         api::ServerType::Vanilla => {
             info!("Downloading Vanilla server JAR from Mojang");
-            let u = reqwest::get(VERSION_MANIFEST_URL)
+            let manifest = reqwest::get(VERSION_MANIFEST_URL)
                 .await?
                 .json::<VersionManifest>()
+                .await?;
+            let version = reqwest::get(manifest.find_exact("1.18.2").unwrap().url)
                 .await?
-                .find_exact(&spec.version.minecraft)
-                .unwrap()
-                .url;
-            info!("Minecraft URL is {:?}", u)
+                .json::<minecraft_version_api::client::Client>()
+                .await?;
+            let u = version.downloads.server.unwrap();
+            info!("Minecraft URL is {}", u.url)
         }
         api::ServerType::Paper => {
             info!("Paper")
@@ -84,4 +83,3 @@ async fn download_server(context: Context, spec: api::MinecraftServerSpec) -> an
     }
     Ok(())
 }
-
